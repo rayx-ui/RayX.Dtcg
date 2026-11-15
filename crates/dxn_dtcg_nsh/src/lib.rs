@@ -29,7 +29,9 @@ pub mod values;
 
 use std::collections::{BTreeMap, HashMap};
 
-use dxn_dtcg::{DtcgRuntime, Resolution, ResolvedTokens, RuntimeOptions, ValueExtensions};
+use dxn_dtcg::{
+    DtcgRuntime, Resolution, ResolvedTokens, RuntimeLimits, RuntimeOptions, ValueExtensions,
+};
 use serde_json::{Map, Value};
 
 use crate::kinds::Kind;
@@ -111,7 +113,11 @@ pub fn export(
     let fail = |e: dxn_dtcg::DtcgError| ExportError(vec![e.to_string()]);
     let mut project = Project {
         runtime: DtcgRuntime::with_options(
-            RuntimeOptions::default().with_extensions(ValueExtensions::all()),
+            RuntimeOptions::default()
+                .with_extensions(ValueExtensions::all())
+                .with_limits(
+                    RuntimeLimits::default().with_max_selections(options.max_combinations),
+                ),
         ),
         load,
     };
@@ -159,6 +165,52 @@ pub fn export(
         })
         .collect();
     // DTCG gives a modifier two contexts or more, as NSH does.
+    if !errors.is_empty() {
+        return Err(ExportError(errors));
+    }
+    // One structure in every selection: NSH's contexts add no names and
+    // change no kind.
+    let report = project.structure(options)?;
+    let named = |selection: &[(String, String)]| {
+        selection
+            .iter()
+            .map(|(a, c)| format!("{a}={c}"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    for failure in &report.failures {
+        errors.push(format!(
+            "under {}: {}",
+            named(&failure.selection),
+            failure.error
+        ));
+    }
+    for difference in &report.differences {
+        let missing = difference.missing_in();
+        if missing.is_empty() {
+            let types: Vec<&str> = difference
+                .distinct_types()
+                .iter()
+                .map(|t| t.name())
+                .collect();
+            errors.push(format!(
+                "`{}` is a {} in some contexts: a token keeps one type in every context",
+                difference.path,
+                types.join(" or a ")
+            ));
+        } else {
+            let first = &report.selections[missing[0]];
+            errors.push(format!(
+                "`{}` is missing under {}{}: a context adds no tokens and removes none",
+                difference.path,
+                named(first),
+                match missing.len() {
+                    1 => String::new(),
+                    n => format!(" (and {} more selections)", n - 1),
+                }
+            ));
+        }
+    }
     if !errors.is_empty() {
         return Err(ExportError(errors));
     }
@@ -426,6 +478,30 @@ impl Project<'_> {
                         .map_err(|e| ExportError(vec![format!("`{id}`: {e}")]))?;
                 }
                 Ok(None)
+            }
+        }
+    }
+
+    /// Every selection's structure compared ([`dxn_dtcg::DtcgRuntime::check_structure`]).
+    fn structure(&mut self, options: &Options) -> Result<dxn_dtcg::StructureReport, ExportError> {
+        let fail = |e: dxn_dtcg::DtcgError| ExportError(vec![e.to_string()]);
+        loop {
+            let resolution = self.runtime.selection_space().map_err(fail)?;
+            let Some(space) = self.provide(resolution)? else {
+                continue;
+            };
+            if space
+                .combinations()
+                .is_none_or(|n| n > options.max_combinations)
+            {
+                return Err(ExportError(vec![format!(
+                    "more than {} combinations of contexts to check",
+                    options.max_combinations
+                )]));
+            }
+            let resolution = self.runtime.check_structure(&space).map_err(fail)?;
+            if let Some(report) = self.provide(resolution)? {
+                return Ok(report);
             }
         }
     }

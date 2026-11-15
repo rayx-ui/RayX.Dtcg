@@ -127,3 +127,26 @@ fn a_named_appearance_gives_light_and_dark() {
     assert_eq!(export.document["cssVars"]["dark"]["ink"], "#ffffff");
     assert!(export.document.get("modifiers").is_none());
 }
+
+/// A context that adds a token, or gives one another type, is refused: NSH's
+/// contexts add no names and change no kind.
+#[test]
+fn a_context_that_adds_a_token_or_changes_its_type_is_refused() {
+    let resolver = r##"{
+      "version": "2025.10",
+      "sets": { "base": { "sources": [{ "ink": { "$type": "color", "$value": { "colorSpace": "srgb", "components": [0, 0, 0] } } }] } },
+      "modifiers": { "brand": { "default": "ocean", "contexts": {
+        "ocean": [],
+        "forest": [{ "leaf": { "$type": "number", "$value": 1 },
+                     "ink": { "$type": "number", "$value": 2 } }] } } },
+      "resolutionOrder": [{ "$ref": "#/sets/base" }, { "$ref": "#/modifiers/brand" }]
+    }"##;
+    let said = errors(&[("d.resolver.json", resolver)], &Options::default());
+    assert_eq!(
+        said,
+        [
+            "`ink` is a color or a number in some contexts: a token keeps one type in every context",
+            "`leaf` is missing under brand=ocean: a context adds no tokens and removes none",
+        ]
+    );
+}

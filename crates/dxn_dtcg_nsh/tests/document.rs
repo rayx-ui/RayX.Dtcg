@@ -90,3 +90,21 @@ fn other_modifiers_hold_only_what_each_context_changes() {
     // The appearance is NSH's own, no modifier.
     assert!(export.document["modifiers"].get("theme").is_none());
 }
+
+/// Strings and booleans (`dxn.dtcg.string`, `dxn.dtcg.boolean`) are NSH's
+/// string and boolean tokens, as JSON.
+#[test]
+fn strings_and_booleans_are_written_as_json() {
+    let tokens = r##"{
+      "brand": { "name": { "$type": "dxn.dtcg.string", "$value": "Acme" } },
+      "features": { "beta": { "$type": "dxn.dtcg.boolean", "$value": true } }
+    }"##;
+    let export = common::run(&[("tokens.json", tokens)], &Options::default()).unwrap();
+    assert_eq!(export.document["cssVars"]["theme"]["brand-name"], "Acme");
+    assert_eq!(export.document["cssVars"]["theme"]["features-beta"], true);
+    assert_eq!(export.document["tokens"]["brand-name"]["kind"], "string");
+    assert_eq!(
+        export.document["tokens"]["features-beta"]["kind"],
+        "boolean"
+    );
+}

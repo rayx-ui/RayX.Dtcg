@@ -49,6 +49,9 @@ from a loader and returns the document, each path's NSH name and what it left ou
   default), durations in milliseconds, shadows, gradients and easings as CSS. A gradient's geometry comes from
   `$extensions["dev.nsh"].gradient` (`{ "kind": "linear" | "radial" | "conic", "angle": <deg> }`; linear, 180° by
   default). A typography token is `text-<n>` with the parts `--line-height`, `--letter-spacing`, `--font-weight`.
+- **One structure.** Every selection has the same tokens with the same types (`dxn_dtcg`'s structure check): a
+  context that adds a token, removes one or changes a type is refused, as NSH's contexts add no names and change no
+  kind.
 - **Exact layers.** NSH lays each modifier's picked context over the values, in order. The export resolves every
   combination of contexts (up to `max_combinations`, 4 096) and refuses a token whose value there is not what the
   layers give, naming the token and the combination: two modifiers that change a token *together* (one aliases a
