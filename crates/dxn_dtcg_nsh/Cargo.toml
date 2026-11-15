@@ -1,0 +1,20 @@
+[package]
+name = "dxn_dtcg_nsh"
+description = "Exports a DTCG 2025.10 design-token project as an NSH theme document (cssVars, tokens, modifiers), and checks that it is current."
+keywords = ["dtcg", "design-tokens", "nsh", "theme"]
+categories = ["command-line-utilities", "gui"]
+readme = "../../README.md"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[[bin]]
+name = "dtcg-nsh"
+path = "src/main.rs"
+
+[dependencies]
+dxn_dtcg.workspace = true
+serde_json.workspace = true

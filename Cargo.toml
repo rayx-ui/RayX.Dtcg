@@ -1,0 +1,18 @@
+[workspace]
+resolver = "2"
+members = ["crates/dxn_dtcg_nsh"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/dXnSix/dXn.DtcgNsh"
+homepage = "https://github.com/dXnSix/dXn.DtcgNsh"
+
+[workspace.dependencies]
+# A path to the local checkout until the release with `dxn.dtcg.string` and
+# `dxn.dtcg.boolean` is out; then the release tag
+# (`{ git = "https://github.com/dXnSix/dXn.Dtcg", tag = "vX.Y.Z" }`).
+dxn_dtcg = { path = "../dXn.Dtcg/crates/dxn_dtcg" }
+serde_json = { version = "1.0.145", features = ["preserve_order"] }
