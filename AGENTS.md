@@ -19,8 +19,8 @@ Each feature has its own integration-test group in `crates/dxn_dtcg_nsh/tests/<f
 
 ## Dependencies
 
-`dxn_dtcg` is a path to the local `../dXn.Dtcg` checkout until the release with `dxn.dtcg.string` and
-`dxn.dtcg.boolean` is out; then a release tag, as dXn.Dtcg's consumers pin it.
+`dxn_dtcg` is pinned to a dXn.Dtcg release tag (`v1.4.0`); move to a new release by changing the tag. A change this
+crate needs from dXn.Dtcg is released there first.
 
 ## Commits
 

@@ -11,8 +11,7 @@ repository = "https://github.com/dXnSix/dXn.DtcgNsh"
 homepage = "https://github.com/dXnSix/dXn.DtcgNsh"
 
 [workspace.dependencies]
-# A path to the local checkout until the release with `dxn.dtcg.string` and
-# `dxn.dtcg.boolean` is out; then the release tag
-# (`{ git = "https://github.com/dXnSix/dXn.Dtcg", tag = "vX.Y.Z" }`).
-dxn_dtcg = { path = "../dXn.Dtcg/crates/dxn_dtcg" }
+# A release tag, as dXn.Dtcg's consumers pin it: v1.4.0 has `TokenType`, the
+# structure check and `dxn.dtcg.string` / `dxn.dtcg.boolean`.
+dxn_dtcg = { git = "https://github.com/dXnSix/dXn.Dtcg", tag = "v1.4.0" }
 serde_json = { version = "1.0.145", features = ["preserve_order"] }
