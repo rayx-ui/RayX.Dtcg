@@ -11,7 +11,4 @@ repository = "https://github.com/dXnSix/dXn.DtcgNsh"
 homepage = "https://github.com/dXnSix/dXn.DtcgNsh"
 
 [workspace.dependencies]
-# A release tag, as dXn.Dtcg's consumers pin it: v1.4.0 has `TokenType`, the
-# structure check and `dxn.dtcg.string` / `dxn.dtcg.boolean`.
-dxn_dtcg = { git = "https://github.com/dXnSix/dXn.Dtcg", tag = "v1.4.0" }
 serde_json = { version = "1.0.145", features = ["preserve_order"] }

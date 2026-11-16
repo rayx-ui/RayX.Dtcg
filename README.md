@@ -61,8 +61,17 @@ from a loader and returns the document, each path's NSH name and what it left ou
 
 ```toml
 [dependencies]
-dxn_dtcg_nsh = { git = "https://github.com/dXnSix/dXn.DtcgNsh", tag = "vX.Y.Z" }
+dxn_dtcg_nsh = { git = "https://github.com/dXnSix/dXn.DtcgNsh", tag = "v0.1.0" }
 ```
+
+The command:
+
+```bash
+cargo install --git https://github.com/dXnSix/dXn.DtcgNsh --tag v0.1.0 dxn_dtcg_nsh
+```
+
+Releases are listed on the [Releases page](https://github.com/dXnSix/dXn.DtcgNsh/releases); see
+[CHANGELOG.md](CHANGELOG.md) and [docs/releasing.md](docs/releasing.md).
 
 ## License
 

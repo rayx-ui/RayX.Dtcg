@@ -16,5 +16,8 @@ name = "dtcg-nsh"
 path = "src/main.rs"
 
 [dependencies]
-dxn_dtcg.workspace = true
+# A dXn.Dtcg release tag: v1.4.0 has `TokenType`, the structure check and `dxn.dtcg.string` /
+# `dxn.dtcg.boolean`. Declared here, not in the workspace table, so that a commit moving the tag
+# changes this crate's packaged files and release-plz releases it (docs/releasing.md).
+dxn_dtcg = { git = "https://github.com/dXnSix/dXn.Dtcg", tag = "v1.4.0" }
 serde_json.workspace = true

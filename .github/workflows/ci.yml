@@ -1,0 +1,36 @@
+name: dXn.DtcgNsh
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  rust:
+    name: native (${{ matrix.os }})
+    strategy:
+      # Every platform reports its own result.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@1.97.0
+        with:
+          components: clippy, rustfmt
+      - run: cargo fmt --check
+      # The exporter writes NSH's theme document format; it depends on nothing of NSH or an app.
+      - name: No UI framework in the dependency tree
+        shell: bash
+        run: |
+          tree=$(cargo tree --workspace --edges all --prefix none)
+          if grep -E '^(nsh-|gpui|rayx)' <<< "$tree"; then
+            echo "::error::The exporter depends on a UI or app framework."
+            exit 1
+          fi
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      # `dxn_dtcg` comes by git tag only and has no crates.io version, so the package cannot be
+      # built for a registry; `--list` still checks which files it would ship.
+      - run: cargo package --workspace --list
