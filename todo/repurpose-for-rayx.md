@@ -322,8 +322,8 @@ exporter, no NSH), crate docs in `lib.rs` and `main.rs`, `docs/rayx-theme-format
 
 **Commit** when asked: one breaking commit, e.g. `feat!: export the RayX theme format in place of
 NSH theme documents`, body stating the break, `Migration:` footer (the output format and the CLI
-flags changed; DTCG projects need `dev.rayx.name`). release-plz then proposes `v0.2.0`; pushing and
-merging its release PR need the owner's go-ahead.
+flags changed; DTCG projects need `dev.rayx.name`). release-plz then proposes `v0.3.0` (`v0.2.0` was
+the rename to `rayx_dtcg`); pushing and merging its release PR need the owner's go-ahead.
 
 ### Phase 3: read the RayX format in RayX (`RayX/`)
 
@@ -364,7 +364,7 @@ build and committed.
 ### Phase 4: switch the workflow (RayX.Root)
 
 - The `rayx-components` skill runs the library's CLI instead of `theme_codegen.py`:
-  `cargo install --git https://github.com/rayx-ui/RayX.Dtcg --tag v0.2.0 --locked rayx_dtcg`
+  `cargo install --git https://github.com/rayx-ui/RayX.Dtcg --tag v0.3.0 --locked rayx_dtcg`
   (during development `cargo run --manifest-path ../RayX.Dtcg/Cargo.toml --bin rayx-dtcg
   --`), then from RayX.Root:
   `rayx-dtcg ../RayX.Design/tokens/dtcg/rayx.resolver.json -o ../RayX/crates/rayx_components/theme.json`
