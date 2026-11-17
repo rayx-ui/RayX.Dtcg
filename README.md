@@ -1,4 +1,4 @@
-# dXn.DtcgNsh
+# RayX.Dtcg
 
 Exports a [DTCG 2025.10](https://www.designtokens.org/TR/2025.10/) design-token project (a token document, or a
 resolver with its sets and modifiers) as an **NSH theme document**: the theme file an NSH app ships. Design tools
@@ -6,11 +6,11 @@ resolver with its sets and modifiers) as an **NSH theme document**: the theme fi
 and never parse DTCG.
 
 ```text
-dtcg-nsh design/acme.resolver.json -o theme.json --names names.json
-dtcg-nsh design/acme.resolver.json -o theme.json --check     # in CI: fails when theme.json is stale
+rayx-dtcg design/acme.resolver.json -o theme.json --names names.json
+rayx-dtcg design/acme.resolver.json -o theme.json --check     # in CI: fails when theme.json is stale
 ```
 
-The library, `dxn_dtcg_nsh`, does the same without I/O: `export(root, &load, &options)` takes the project's files
+The library, `rayx_dtcg`, does the same without I/O: `export(root, &load, &options)` takes the project's files
 from a loader and returns the document, each path's NSH name and what it left out. It resolves the project with
 [`dxn_dtcg`](https://github.com/dXnSix/dXn.Dtcg).
 
@@ -61,16 +61,18 @@ from a loader and returns the document, each path's NSH name and what it left ou
 
 ```toml
 [dependencies]
-dxn_dtcg_nsh = { git = "https://github.com/dXnSix/dXn.DtcgNsh", tag = "v0.1.0" }
+rayx_dtcg = { git = "https://github.com/rayx-ui/RayX.Dtcg", tag = "vX.Y.Z" }
 ```
 
 The command:
 
 ```bash
-cargo install --git https://github.com/dXnSix/dXn.DtcgNsh --tag v0.1.0 dxn_dtcg_nsh
+cargo install --git https://github.com/rayx-ui/RayX.Dtcg --tag vX.Y.Z rayx_dtcg
 ```
 
-Releases are listed on the [Releases page](https://github.com/dXnSix/dXn.DtcgNsh/releases); see
+`v0.1.0` predates the rename: its package is `dxn_dtcg_nsh` and its command `dtcg-nsh`.
+
+Releases are listed on the [Releases page](https://github.com/rayx-ui/RayX.Dtcg/releases); see
 [CHANGELOG.md](CHANGELOG.md) and [docs/releasing.md](docs/releasing.md).
 
 ## License

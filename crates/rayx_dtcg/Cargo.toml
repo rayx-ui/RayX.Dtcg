@@ -1,5 +1,5 @@
 [package]
-name = "dxn_dtcg_nsh"
+name = "rayx_dtcg"
 description = "Exports a DTCG 2025.10 design-token project as an NSH theme document (cssVars, tokens, modifiers), and checks that it is current."
 keywords = ["dtcg", "design-tokens", "nsh", "theme"]
 categories = ["command-line-utilities", "gui"]
@@ -12,7 +12,7 @@ repository.workspace = true
 homepage.workspace = true
 
 [[bin]]
-name = "dtcg-nsh"
+name = "rayx-dtcg"
 path = "src/main.rs"
 
 [dependencies]

@@ -1,14 +1,14 @@
 [workspace]
 resolver = "2"
-members = ["crates/dxn_dtcg_nsh"]
+members = ["crates/rayx_dtcg"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.97"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/dXnSix/dXn.DtcgNsh"
-homepage = "https://github.com/dXnSix/dXn.DtcgNsh"
+repository = "https://github.com/rayx-ui/RayX.Dtcg"
+homepage = "https://github.com/rayx-ui/RayX.Dtcg"
 
 [workspace.dependencies]
 serde_json = { version = "1.0.145", features = ["preserve_order"] }

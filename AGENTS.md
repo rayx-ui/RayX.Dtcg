@@ -1,6 +1,6 @@
-# dXn.DtcgNsh contributor guidance
+# RayX.Dtcg contributor guidance
 
-Exports DTCG 2025.10 projects as NSH theme documents: `crates/dxn_dtcg_nsh` (library `export` and the `dtcg-nsh`
+Exports DTCG 2025.10 projects as NSH theme documents: `crates/rayx_dtcg` (library `export` and the `rayx-dtcg`
 command). It depends on `dxn_dtcg` for resolution and on nothing of NSH: the theme document's format is NSH's
 (`nsh-root/_projects/theme-collections/theme-document.md` in the NSH fork's workspace), written as JSON.
 
@@ -14,12 +14,12 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
-Each feature has its own integration-test group in `crates/dxn_dtcg_nsh/tests/<feature>.rs`; select one with
+Each feature has its own integration-test group in `crates/rayx_dtcg/tests/<feature>.rs`; select one with
 `cargo test --test <feature>`. A new feature or behavior change gets a new group.
 
 ## Dependencies
 
-`dxn_dtcg` is pinned to a dXn.Dtcg release tag (`v1.4.0`) in `crates/dxn_dtcg_nsh/Cargo.toml`, not the workspace
+`dxn_dtcg` is pinned to a dXn.Dtcg release tag (`v1.4.0`) in `crates/rayx_dtcg/Cargo.toml`, not the workspace
 table, so that moving it releases this crate. Move to a new release by changing the tag in a `fix(deps):` commit (or
 `feat(deps):` when the export uses something new). A change this crate needs from dXn.Dtcg is released there first.
 

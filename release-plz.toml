@@ -24,14 +24,14 @@ semver_check = false
 release_commits = "^(feat|fix|perf)"
 
 [[package]]
-name = "dxn_dtcg_nsh"
+name = "rayx_dtcg"
 # The package lives in `crates/`; the repository keeps one root changelog.
 changelog_path = "./CHANGELOG.md"
 
 [changelog]
 header = """# Changelog
 
-All notable changes to `dxn_dtcg_nsh` (the library and the `dtcg-nsh` command) are documented in
+All notable changes to `rayx_dtcg` (the library and the `rayx-dtcg` command) are documented in
 this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). It is generated from
 Conventional Commits by release-plz.

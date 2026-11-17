@@ -4,7 +4,7 @@
 
 mod common;
 
-use dxn_dtcg_nsh::{Appearance, Options};
+use rayx_dtcg::{Appearance, Options};
 
 fn errors(files: &[(&str, &str)], options: &Options) -> Vec<String> {
     common::run(files, options).unwrap_err().0

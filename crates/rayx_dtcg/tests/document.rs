@@ -4,7 +4,7 @@
 
 mod common;
 
-use dxn_dtcg_nsh::Options;
+use rayx_dtcg::Options;
 use serde_json::json;
 
 #[test]

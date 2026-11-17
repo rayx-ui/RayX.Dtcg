@@ -21,7 +21,7 @@
 //!   the token and the combination.
 //!
 //! The library reads nothing itself: [`export`] takes the project's files
-//! from a loader. The `dtcg-nsh` command reads them from disk.
+//! from a loader. The `rayx-dtcg` command reads them from disk.
 
 pub mod kinds;
 pub mod names;

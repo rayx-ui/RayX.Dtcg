@@ -1,18 +1,21 @@
-# Releasing `dxn_dtcg_nsh`
+# Releasing `rayx_dtcg`
 
 A release is a version tag `vX.Y.Z` on `main` with a GitHub Release of the same name. Nothing is
 published to crates.io: consumers depend on the tag,
 
 ```toml
 [dependencies]
-dxn_dtcg_nsh = { git = "https://github.com/dXnSix/dXn.DtcgNsh", tag = "vX.Y.Z" }
+rayx_dtcg = { git = "https://github.com/rayx-ui/RayX.Dtcg", tag = "vX.Y.Z" }
 ```
 
 and `Cargo.lock` records the commit it points to. The command installs from the same tag:
 
 ```bash
-cargo install --git https://github.com/dXnSix/dXn.DtcgNsh --tag vX.Y.Z dxn_dtcg_nsh
+cargo install --git https://github.com/rayx-ui/RayX.Dtcg --tag vX.Y.Z rayx_dtcg
 ```
+
+`v0.1.0` was released as `dxn_dtcg_nsh` (command `dtcg-nsh`) from `dXnSix/dXn.DtcgNsh`, before the
+repository became `rayx-ui/RayX.Dtcg`.
 
 No registry release is made, and none can be while `dxn_dtcg` comes by git tag only: CI checks the
 package's file list (`cargo package --workspace --list`), not a registry build.
@@ -45,10 +48,10 @@ changelog. `CHANGELOG.md` is written by release-plz and never edited by hand bet
 ## Taking a new `dxn_dtcg` release
 
 release-plz counts only the commits that change the crate's packaged files
-(`crates/dxn_dtcg_nsh/` with the `README.md` it ships). That is why `dxn_dtcg` is declared in
-`crates/dxn_dtcg_nsh/Cargo.toml`, not in the workspace table. Move its tag in a `fix(deps):`
+(`crates/rayx_dtcg/` with the `README.md` it ships). That is why `dxn_dtcg` is declared in
+`crates/rayx_dtcg/Cargo.toml`, not in the workspace table. Move its tag in a `fix(deps):`
 commit (or `feat(deps):` when the new release brings something the export uses), so that it
-releases `dxn_dtcg_nsh` on it and consumers can read which `dxn_dtcg` tag to pair with. A change
+releases `rayx_dtcg` on it and consumers can read which `dxn_dtcg` tag to pair with. A change
 this crate needs from dXn.Dtcg is released there first.
 
 ## Before merging a release pull request

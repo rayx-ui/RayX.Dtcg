@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 
-use dxn_dtcg_nsh::{Export, ExportError, Options, export};
+use rayx_dtcg::{Export, ExportError, Options, export};
 
 /// Exports the project `files` (resource id, text), rooted at the first.
 pub fn run(files: &[(&str, &str)], options: &Options) -> Result<Export, ExportError> {

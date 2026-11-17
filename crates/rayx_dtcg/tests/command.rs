@@ -1,4 +1,4 @@
-//! `dtcg-nsh`: writes the export, `--check` fails on a file that is not
+//! `rayx-dtcg`: writes the export, `--check` fails on a file that is not
 //! the export any more, `--names` writes each path's NSH name, and a
 //! refused project fails with every reason.
 
@@ -7,7 +7,7 @@ mod common;
 use std::{path::PathBuf, process::Command};
 
 fn project_dir(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("dtcg-nsh-{tag}-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("rayx-dtcg-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     for (name, text) in common::project() {
@@ -16,8 +16,8 @@ fn project_dir(tag: &str) -> PathBuf {
     dir
 }
 
-fn dtcg_nsh(dir: &PathBuf, args: &[&str]) -> std::process::Output {
-    Command::new(env!("CARGO_BIN_EXE_dtcg-nsh"))
+fn rayx_dtcg(dir: &PathBuf, args: &[&str]) -> std::process::Output {
+    Command::new(env!("CARGO_BIN_EXE_rayx-dtcg"))
         .current_dir(dir)
         .args(args)
         .output()
@@ -27,7 +27,7 @@ fn dtcg_nsh(dir: &PathBuf, args: &[&str]) -> std::process::Output {
 #[test]
 fn it_writes_the_export_and_checks_it() {
     let dir = project_dir("check");
-    let out = dtcg_nsh(
+    let out = rayx_dtcg(
         &dir,
         &[
             "acme.resolver.json",
@@ -50,7 +50,7 @@ fn it_writes_the_export_and_checks_it() {
         serde_json::from_str(&std::fs::read_to_string(dir.join("names.json")).unwrap()).unwrap();
     assert_eq!(names["brand.name"], "primary");
     // Current: the check passes.
-    let check = dtcg_nsh(&dir, &["acme.resolver.json", "-o", "theme.json", "--check"]);
+    let check = rayx_dtcg(&dir, &["acme.resolver.json", "-o", "theme.json", "--check"]);
     assert!(
         check.status.success(),
         "{}",
@@ -62,7 +62,7 @@ fn it_writes_the_export_and_checks_it() {
         r#"{ "radius": { "card": { "$value": { "value": 4, "unit": "px" } } } }"#,
     )
     .unwrap();
-    let check = dtcg_nsh(&dir, &["acme.resolver.json", "-o", "theme.json", "--check"]);
+    let check = rayx_dtcg(&dir, &["acme.resolver.json", "-o", "theme.json", "--check"]);
     assert_eq!(check.status.code(), Some(1));
     assert!(
         String::from_utf8_lossy(&check.stderr)
@@ -79,7 +79,7 @@ fn a_refused_project_fails_with_every_reason() {
         r#"{ "a-b": { "c": { "$type": "number", "$value": 1 } }, "a": { "b-c": { "$type": "number", "$value": 2 } } }"#,
     )
     .unwrap();
-    let out = dtcg_nsh(&dir, &["clash.json"]);
+    let out = rayx_dtcg(&dir, &["clash.json"]);
     assert_eq!(out.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&out.stderr).contains("are both named `a-b-c`"));
     let _ = std::fs::remove_dir_all(&dir);

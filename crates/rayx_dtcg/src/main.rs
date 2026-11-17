@@ -1,7 +1,7 @@
-//! `dtcg-nsh`: exports a DTCG project as an NSH theme document.
+//! `rayx-dtcg`: exports a DTCG project as an NSH theme document.
 //!
 //! ```text
-//! dtcg-nsh <root.json> [-o <theme.json>] [--appearance <modifier>[=<light>,<dark>]]
+//! rayx-dtcg <root.json> [-o <theme.json>] [--appearance <modifier>[=<light>,<dark>]]
 //!          [--rem <px>] [--names <names.json>] [--check]
 //! ```
 //!
@@ -11,15 +11,15 @@
 
 use std::{path::PathBuf, process::ExitCode};
 
-use dxn_dtcg_nsh::{Appearance, Options, export};
+use rayx_dtcg::{Appearance, Options, export};
 
-const USAGE: &str = "usage: dtcg-nsh <root.json> [-o <theme.json>] [--appearance <modifier>[=<light>,<dark>]] [--rem <px>] [--names <names.json>] [--check]";
+const USAGE: &str = "usage: rayx-dtcg <root.json> [-o <theme.json>] [--appearance <modifier>[=<light>,<dark>]] [--rem <px>] [--names <names.json>] [--check]";
 
 fn main() -> ExitCode {
     match run(std::env::args().skip(1).collect()) {
         Ok(code) => code,
         Err(message) => {
-            eprintln!("dtcg-nsh: {message}");
+            eprintln!("rayx-dtcg: {message}");
             ExitCode::from(2)
         }
     }
@@ -84,13 +84,13 @@ fn run(args: Vec<String>) -> Result<ExitCode, String> {
         Ok(export) => export,
         Err(e) => {
             for line in &e.0 {
-                eprintln!("dtcg-nsh: {line}");
+                eprintln!("rayx-dtcg: {line}");
             }
             return Ok(ExitCode::FAILURE);
         }
     };
     for line in &export.left_out {
-        eprintln!("dtcg-nsh: left out: {line}");
+        eprintln!("rayx-dtcg: left out: {line}");
     }
     let text = export.text();
     if let Some(path) = &names {
@@ -110,7 +110,7 @@ fn run(args: Vec<String>) -> Result<ExitCode, String> {
                 Ok(ExitCode::SUCCESS)
             } else {
                 eprintln!(
-                    "dtcg-nsh: {} is not the export of {}: run dtcg-nsh without --check",
+                    "rayx-dtcg: {} is not the export of {}: run rayx-dtcg without --check",
                     path.display(),
                     root.display()
                 );

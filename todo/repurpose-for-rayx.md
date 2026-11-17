@@ -1,4 +1,4 @@
-# Repurpose dXn.DtcgNsh as RayX's token exporter (future RayX.Dtcg)
+# Repurpose RayX.Dtcg (formerly dXn.DtcgNsh) as RayX's token exporter
 
 Status: **planned, not started** (written 2026-11-16). Nothing below is implemented except the
 format draft (`docs/rayx-theme-format.md`), the prototype (`todo/prototype/rayx_theme_proto.py`)
@@ -20,7 +20,8 @@ There are two projects that turn the RayX design system's DTCG tokens into a the
    `RayX.Design/tokens/dtcg/` (`rayx.resolver.json` and its token documents) and writes
    `RayX/crates/rayx_components/theme.json`. **This is what RayX uses today.** It is written for
    RayX: it knows RayX's collections, shortens names by RayX's rule and carries RayX's table of roles.
-2. **This library, dXn.DtcgNsh** (`crates/dxn_dtcg_nsh`, library `export(...)`, CLI `dtcg-nsh`). It
+2. **This library, RayX.Dtcg**, formerly dXn.DtcgNsh (`crates/rayx_dtcg`, library `export(...)`, CLI
+   `rayx-dtcg`). It
    was built in the NSH fork's "theme collections" project
    (`dXn/nsh/nsh-root/_projects/theme-collections/`) as a **generic** DTCG → NSH theme document
    exporter for *any* project: it guesses kinds from `dev.nsh.use` / `com.figma.scopes` / path
@@ -56,10 +57,10 @@ was aimed at the wrong target.
    connector** will pull variables from Figma and let the token editor sync them with its own
    variable tree. Until then the hand-maintained files in RayX.Design are the test and development
    source.
-5. **Refactor this repository in place, now.** Later the owner transfers it to the RayX GitHub
-   organization (`rayx-ui`) and renames it **RayX.Dtcg**. Until then keep the repository, crate and
-   binary names (`dXn.DtcgNsh`, `dxn_dtcg_nsh`, `dtcg-nsh`); the rename is Phase 6, not part of this
-   work.
+5. **Refactor this repository in place, now.** The owner has already transferred it to the RayX
+   GitHub organization and renamed it **RayX.Dtcg** (`github.com/rayx-ui/RayX.Dtcg`); on 2026-11-17
+   the crate became `rayx_dtcg` and the binary `rayx-dtcg` (the rename planned as Phase 6). The old
+   names (`dXn.DtcgNsh`, `dxn_dtcg_nsh`, `dtcg-nsh`) survive only in `v0.1.0` and its changelog.
 
 ### Why `$extensions`
 
@@ -79,15 +80,15 @@ was aimed at the wrong target.
 
 | What | Path (from `~/work-private/projects`) | Repository / rules |
 | --- | --- | --- |
-| This library | `dXn/dXn.DtcgNsh/` | git, `github.com/dXnSix/dXn.DtcgNsh`, branch `main`; `AGENTS.md` here (Conventional Commits, release-plz, test groups) |
+| This library | `RayX/RayX.Dtcg/` | git, `github.com/rayx-ui/RayX.Dtcg`, branch `main`; `AGENTS.md` here (Conventional Commits, release-plz, test groups) |
 | DTCG resolution library it uses | `dXn/dXn.Dtcg/` (`dxn_dtcg`, tag `v1.4.0`) | its own repo; a change needed there is released there first |
 | The DTCG token files | `RayX/RayX.Design/tokens/dtcg/` (1.7 MB) | git, local; `RayX/RayX.Design/AGENTS.md` |
 | Today's generator (to replace) | `RayX/RayX.Root/.claude/skills/rayx-components/scripts/theme_codegen.py` (+ `test_theme_document.py`) | git, local; `RayX/RayX.Root/AGENTS.md` (sessions start in RayX.Root) |
 | Today's theme file (NSH format) | `RayX/RayX/crates/rayx_components/theme.json` (710 tokens, ~300 KB) | git, `github.com/rayx-ui/RayX`; `RayX/RayX/AGENTS.md` |
 | Its consumers in RayX | `crates/rayx_components/src/theme/mod.rs` (`theme_keys!("theme.json")`, `DOCUMENT`), `src/lib.rs:61` (`.theme_document(theme::DOCUMENT)`), `tests/support/mod.rs` (`Document`, the tests' oracle), `tests/theme_*.rs` | RayX |
 | NSH's `theme_keys!` macro (read for Phase 3) | `dXn/nsh/nsh/crates/nsh-macros/src/theme_keys.rs` (+ docs at `lib.rs` ~1886) | NSH fork, read only |
-| The format draft | `dXn/dXn.DtcgNsh/docs/rayx-theme-format.md` | this repo |
-| The prototype | `dXn/dXn.DtcgNsh/todo/prototype/rayx_theme_proto.py` | this repo |
+| The format draft | `RayX/RayX.Dtcg/docs/rayx-theme-format.md` | this repo |
+| The prototype | `RayX/RayX.Dtcg/todo/prototype/rayx_theme_proto.py` | this repo |
 | NSH project notes that cite this library | `dXn/nsh/nsh-root/_projects/theme-collections/` (`README.md`, `theme-document.md`) | NSH root; update in Phase 5 |
 
 Workspace rules that apply (from `RayX/RayX.Root/AGENTS.md` and `RayX/RayX/AGENTS.md`):
@@ -267,8 +268,8 @@ Goal: the DTCG project carries everything RayX needs, so the library can be rule
 
 ### Phase 2: refactor the library (this repo)
 
-Goal: `export(...)` and `dtcg-nsh` write the RayX theme format from an annotated DTCG project, with
-parity. Names of repo, crate and binary stay for now (see §1, decision 5).
+Goal: `export(...)` and `rayx-dtcg` write the RayX theme format from an annotated DTCG project, with
+parity. The repository, crate and binary already carry their RayX names (see §1, decision 5).
 
 Read first: `AGENTS.md`, `src/lib.rs` (export, `Project`, `Values`, the exact-layers check),
 `src/kinds.rs`, `src/names.rs`, `src/values.rs`, `src/main.rs`, `tests/*`.
@@ -303,7 +304,7 @@ check (now proving "appearance + at most one other mode per token"), `Export::te
   non-appearance modes; a named token whose type has no RayX type; a non-sRGB color; a unit other
   than px/rem.
 
-**Tests** (each feature its own group in `crates/dxn_dtcg_nsh/tests/<feature>.rs`, run with
+**Tests** (each feature its own group in `crates/rayx_dtcg/tests/<feature>.rs`, run with
 `cargo test --test <feature>`; replace the NSH groups `document.rs`, adapt `refusals.rs` and
 `command.rs`): `theme_format` (top level and modes), `inclusion` (named only, order), `types`
 (derivation incl. the scope order), `shadows`, `roles`, `appearance`, `values` (colors, px/rem,
@@ -363,10 +364,10 @@ build and committed.
 ### Phase 4: switch the workflow (RayX.Root)
 
 - The `rayx-components` skill runs the library's CLI instead of `theme_codegen.py`:
-  `cargo install --git https://github.com/dXnSix/dXn.DtcgNsh --tag v0.2.0 --locked dxn_dtcg_nsh`
-  (during development `cargo run --manifest-path ../../dXn/dXn.DtcgNsh/Cargo.toml --bin dtcg-nsh
+  `cargo install --git https://github.com/rayx-ui/RayX.Dtcg --tag v0.2.0 --locked rayx_dtcg`
+  (during development `cargo run --manifest-path ../RayX.Dtcg/Cargo.toml --bin rayx-dtcg
   --`), then from RayX.Root:
-  `dtcg-nsh ../RayX.Design/tokens/dtcg/rayx.resolver.json -o ../RayX/crates/rayx_components/theme.json`
+  `rayx-dtcg ../RayX.Design/tokens/dtcg/rayx.resolver.json -o ../RayX/crates/rayx_components/theme.json`
   (`--check` to verify).
 - Delete `theme_codegen.py` and `test_theme_document.py` once Phases 2–3 match; keep the prototype
   only in this repo's `todo/`.
@@ -380,13 +381,13 @@ build and committed.
 ### Phase 5: tidy references
 
 - `dXn/nsh/nsh-root/_projects/theme-collections/` (`README.md` §§ around "Steps 5 and 6",
-  `theme-document.md`): note that dXn.DtcgNsh was repurposed as RayX's exporter and no longer
+  `theme-document.md`): note that dXn.DtcgNsh became RayX.Dtcg, RayX's exporter, and no longer
   writes NSH theme documents. Ask the owner before editing the NSH root.
 
 ### Phase 6: later (not part of this work)
 
-- Transfer the repo to `rayx-ui` and rename to **RayX.Dtcg** (crate `rayx_dtcg`, binary e.g.
-  `rayx-dtcg` or a `rayx theme` subcommand of `rayx_cli`); update every path above.
+- Done early: the repository is `rayx-ui/RayX.Dtcg`, the crate `rayx_dtcg`, the binary `rayx-dtcg`
+  (2026-11-17). A `rayx theme` subcommand of `rayx_cli` may still wrap it later.
 - Six.TokenEditor keeps `dev.rayx.*` per variable; its Figma connector pulls variables from Figma;
   then lift the export pause in RayX.Root.
 
