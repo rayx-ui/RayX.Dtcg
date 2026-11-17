@@ -4,7 +4,7 @@ agentx:
   scope: knowledge/release
   status: current
   created: 2026-11-17T01:30:00+01:00
-  updated: 2026-11-17T01:26:10+01:00
+  updated: 2026-11-17T02:20:00+01:00
   topics:
     - release
     - release-plz
@@ -42,6 +42,10 @@ records the shape and what changed since it was written.
   release is the first named `rayx_dtcg`. `CHANGELOG.md`'s header still names `dxn_dtcg_nsh` while
   `release-plz.toml` has the new one; if the next release pull request keeps the old line, it is fixed
   on that pull request (never by hand on `main`).
+- **`release-pr` fails since the rename** (first seen on 2026-11-17, at `a2f6e59`). In git-only mode
+  release-plz opens the latest tag, `v0.1.0`, and looks for the package `rayx_dtcg` there, but at that
+  tag it is `dxn_dtcg_nsh`: `cannot find package "rayx_dtcg" in workspace`. No release pull request can
+  be opened until that is resolved. `release` still passes (nothing to tag).
 
 ## Backlinks
 
