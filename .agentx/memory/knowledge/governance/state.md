@@ -4,7 +4,7 @@ agentx:
   scope: knowledge/governance
   status: current
   created: 2026-11-17T01:30:00+01:00
-  updated: 2026-11-17T01:26:10+01:00
+  updated: 2026-11-17T02:45:00+01:00
   topics:
     - governance
     - agents-md
@@ -24,8 +24,8 @@ repositories. Agent memory upkeep is in [memory](memory/state.md).
 - **The project is RayX.Dtcg**: GitHub `rayx-ui/RayX.Dtcg`, checkout folder `RayX.Dtcg`, crate
   `rayx_dtcg` (`crates/rayx_dtcg`), binary `rayx-dtcg`. It was renamed from dXn.DtcgNsh
   (`dxn_dtcg_nsh`, `dtcg-nsh`, `dXnSix/dXn.DtcgNsh`) on 2026-11-17, ahead of the plan's Phase 6.
-- The old names remain only in history: the `v0.1.0` tag and release, `CHANGELOG.md` (header and the
-  0.1.0 section; release-plz owns it, see [release](../release/state.md)), the notes in `README.md` and
+- The old names remain only in history: the `v0.1.0` tag and release, `CHANGELOG.md`'s 0.1.0 and 0.2.0
+  sections (release-plz owns the file, see [release](../release/state.md)), the notes in `README.md` and
   `docs/releasing.md` that `v0.1.0` predates the rename, and the plan's account of the rename.
 - `AGENTS.md` holds the contributor rules (validation, dependencies, commits, releases) and the AgentX
   block; `CLAUDE.md` only imports it (`@AGENTS.md`).
