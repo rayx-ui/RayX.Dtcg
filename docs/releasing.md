@@ -32,6 +32,12 @@ The first release, `v0.1.0`, needs no pull request: `Cargo.toml` says `0.1.0` an
 exists, so the `release` job tags it on the first push that holds the workflow. Its changelog
 section was written by hand; later sections are generated.
 
+A package rename needs the same. `release-pr` compares the package with the latest tag, and a tag
+made before the rename has no package of the new name, so it fails (`cannot find package`) until a
+tag holds the new one. `v0.2.0`, the first release as `rayx_dtcg`, therefore sets the version in
+`Cargo.toml` and writes its changelog section by hand, in one `chore(release):` commit, and the
+`release` job tags it.
+
 ## The 0.x policy
 
 | Commit | Release |
