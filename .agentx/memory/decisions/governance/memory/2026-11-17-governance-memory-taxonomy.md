@@ -2,14 +2,15 @@
 agentx:
   kind: decision
   scope: decisions/governance/memory
-  status: current
+  status: superseded
   created: 2026-11-17T01:30:00+01:00
-  updated: 2026-11-17T01:26:10+01:00
+  updated: 2026-11-18T18:10:00+01:00
   topics:
     - memory-taxonomy
     - agentx
   supersedes: []
-  superseded_by: []
+  superseded_by:
+    - 2026-11-18-governance-memory-no-format-domain.md
 ---
 # Memory taxonomy for RayX.Dtcg
 

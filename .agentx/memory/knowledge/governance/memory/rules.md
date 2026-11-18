@@ -13,8 +13,8 @@ agentx:
 ---
 # governance/memory: rules
 
-- When the RayX format lands (Phase 2), update `theme-format/state.md` and `exporter/state.md` in the same
-  change, replacing the NSH facts rather than keeping both.
+- When the output format changes, update `exporter/state.md` and `README.md` in the same change, replacing
+  the old facts rather than keeping both.
 - Add a subdomain only for a stable module boundary with durable facts of its own; record a decision
   when top-level domains change.
 - Memory commits are `chore(agentx): …`.

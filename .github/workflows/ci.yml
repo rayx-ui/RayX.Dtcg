@@ -20,13 +20,14 @@ jobs:
         with:
           components: clippy, rustfmt
       - run: cargo fmt --check
-      # The exporter writes NSH's theme document format; it depends on nothing of NSH or an app.
-      # `rayx_dtcg` is this crate, the one `rayx` crate allowed in its tree.
+      # The exporter writes NSH's theme format and depends on no UI or app framework. Two crates
+      # of those names are allowed: `nsh-theme`, the format alone (it needs only serde and
+      # serde_json), and `rayx_dtcg`, this crate. Any other `nsh-*`, `gpui*` or `rayx*` crate fails.
       - name: No UI framework in the dependency tree
         shell: bash
         run: |
           tree=$(cargo tree --workspace --edges all --prefix none)
-          if grep -E '^(nsh-|gpui|rayx)' <<< "$tree" | grep -v '^rayx_dtcg v'; then
+          if grep -E '^(nsh-|gpui|rayx)' <<< "$tree" | grep -v -E '^(nsh-theme|rayx_dtcg) '; then
             echo "::error::The exporter depends on a UI or app framework."
             exit 1
           fi

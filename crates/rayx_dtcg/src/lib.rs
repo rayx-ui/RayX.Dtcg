@@ -1,71 +1,67 @@
 //! Exports a DTCG 2025.10 design-token project (a token document, or a
-//! resolver with its sets and modifiers) as an NSH theme document: the
-//! `cssVars` NSH reads, a `tokens` section that declares each token (its
-//! kind, its path, its doc), and the project's other modifiers as
-//! precomputed `modifiers`, each with its `default` and its `contexts`.
+//! resolver with its sets and modifiers) as an NSH theme document, the format
+//! of the NSH fork's `docs/dev/theme-format.md`, built with `nsh-theme`.
 //!
-//! - **Appearance.** One modifier is the appearance: its two contexts
-//!   become `cssVars`' `light` and `dark` ([`Appearance`]). A value the same
-//!   in both goes to `theme`.
-//! - **Other modifiers** keep their names and their contexts' names. The
-//!   default context's values are in `cssVars`; every other context holds
-//!   only what it changes.
-//! - **Names.** A token's NSH name is its pinned one
-//!   (`$extensions["dev.nsh"].name`), else its kind's namespace and its path
-//!   in kebab case ([`names::name_of`]); two paths of one name are refused.
-//! - **Kinds.** `$type`, and for a dimension or a number its use
-//!   ([`kinds::kind_of`]).
-//! - **Exact layers.** NSH lays each modifier's picked context over the
-//!   values, in order. The export resolves every combination of contexts and
-//!   refuses a token whose value there is not what the layers give, naming
-//!   the token and the combination.
+//! - **Tokens.** Every token of every set and context, each with its name,
+//!   its value type (`kind`), its value, its DTCG `path` and its `doc`.
+//! - **Names.** `$extensions["dev.nsh"].name` when the token pins one, else
+//!   its path's segments in kebab case joined by `-` ([`names`]).
+//! - **Value types.** A fixed table from `$type` ([`types`]), which
+//!   `$extensions["dev.nsh"].type` overrides.
+//! - **Values** in NSH's forms ([`values`]); an alias stays a reference.
+//! - **Layers.** The sets are merged into `tokens`; each modifier keeps its
+//!   name, its contexts and its default, and each context holds exactly its
+//!   DTCG entries; `resolutionOrder` keeps DTCG's order of the modifiers.
+//! - **Roles.** With a role map, `roles` maps each role onto its path's
+//!   token; with role declarations, the document is checked against them.
+//! - **Exactness.** [`verify_exact`] resolves every combination of contexts
+//!   with `dxn_dtcg` and the document with `nsh_theme::resolve`, and refuses
+//!   a token whose values differ. [`export`] runs it before it returns.
 //!
 //! The library reads nothing itself: [`export`] takes the project's files
 //! from a loader. The `rayx-dtcg` command reads them from disk.
 
-pub mod kinds;
+pub mod layers;
 pub mod names;
+pub mod roles;
+pub mod types;
 pub mod values;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{HashMap, HashSet};
 
 use dxn_dtcg::{
-    DtcgRuntime, Resolution, ResolvedTokens, RuntimeLimits, RuntimeOptions, ValueExtensions,
+    DtcgRuntime, ModifierAxis, Resolution, ResolvedTokens, RuntimeLimits, RuntimeOptions,
+    ValueExtensions,
 };
-use serde_json::{Map, Value};
+use nsh_theme::{Context, Modifier, Selection, ThemeDocument, Token, ValueType};
+use serde_json::Value;
 
-use crate::kinds::Kind;
-
-/// Which modifier is NSH's appearance, and which of its contexts are light
-/// and dark.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Appearance {
-    /// The modifier's name (`theme`).
-    pub modifier: String,
-    /// Its light context (`light`).
-    pub light: String,
-    /// Its dark context (`dark`).
-    pub dark: String,
-}
+use crate::{
+    layers::{Definition, Entries, Extends, Step},
+    values::{Converter, Target},
+};
 
 /// How a project is exported.
 #[derive(Clone, Debug)]
 pub struct Options {
-    /// The appearance modifier; `None`: the one whose contexts are `light`
-    /// and `dark`, if there is one, else every value is both appearances'.
-    pub appearance: Option<Appearance>,
-    /// Pixels per `rem`.
+    /// Points per `rem`.
     pub rem: f64,
-    /// The most combinations of contexts the exactness check resolves.
+    /// The most combinations of contexts the structure and exactness checks
+    /// resolve.
     pub max_combinations: usize,
+    /// The role map's text: a JSON object from a role's name to a DTCG path.
+    pub role_map: Option<String>,
+    /// The role declarations' text: `[{ "name", "type", "doc"?, "required"? }]`.
+    pub roles: Option<String>,
 }
 
 impl Default for Options {
     fn default() -> Self {
         Self {
-            appearance: None,
             rem: 16.0,
             max_combinations: 4096,
+            role_map: None,
+            roles: None,
         }
     }
 }
@@ -74,19 +70,17 @@ impl Default for Options {
 #[derive(Clone, Debug)]
 pub struct Export {
     /// The NSH theme document.
-    pub document: Value,
-    /// Each token's path and the NSH name it took, in path order.
-    pub names: Vec<(String, String)>,
-    /// What was left out and why (a type NSH has no kind of).
-    pub left_out: Vec<String>,
+    pub document: ThemeDocument,
+    /// What the role check warned about and kept (`role-unknown`), each as
+    /// `<severity> <code> <pointer>: <message>`.
+    pub warnings: Vec<String>,
 }
 
 impl Export {
-    /// The document as it is written: pretty JSON with a final newline.
+    /// The document as it is written: [`nsh_theme::write`]'s text, which ends
+    /// in a newline.
     pub fn text(&self) -> String {
-        let mut text = serde_json::to_string_pretty(&self.document).unwrap_or_default();
-        text.push('\n');
-        text
+        nsh_theme::write(&self.document)
     }
 }
 
@@ -110,336 +104,505 @@ pub fn export(
     load: &dyn Fn(&str) -> Option<String>,
     options: &Options,
 ) -> Result<Export, ExportError> {
-    let fail = |e: dxn_dtcg::DtcgError| ExportError(vec![e.to_string()]);
-    let mut project = Project {
-        runtime: DtcgRuntime::with_options(
-            RuntimeOptions::default()
-                .with_extensions(ValueExtensions::all())
-                .with_limits(
-                    RuntimeLimits::default().with_max_selections(options.max_combinations),
-                ),
-        ),
-        load,
-    };
-    project.runtime.set_root(root).map_err(fail)?;
+    let mut project = Project::new(root, load, options)?;
     let axes = project.axes()?;
+    project.combinations(&axes, options)?;
+    project.structure()?;
+    let base = project.resolve(&[])?;
+    let root_json = project.root_json()?;
     let mut errors = Vec::new();
 
-    // The appearance, and the other modifiers with their defaults.
-    let appearance = match &options.appearance {
-        Some(a) => {
-            let Some(axis) = axes.iter().find(|x| x.name == a.modifier) else {
-                return Err(ExportError(vec![format!(
-                    "the project has no modifier `{}`",
-                    a.modifier
-                )]));
-            };
-            for context in [&a.light, &a.dark] {
-                if !axis.contexts.contains(context) {
-                    errors.push(format!(
-                        "the modifier `{}` has no context `{context}`",
-                        a.modifier
-                    ));
-                }
-            }
-            Some(a.clone())
-        }
-        None => axes
-            .iter()
-            .find(|x| {
-                x.contexts.iter().any(|c| c == "light") && x.contexts.iter().any(|c| c == "dark")
-            })
-            .map(|x| Appearance {
-                modifier: x.name.clone(),
-                light: "light".into(),
-                dark: "dark".into(),
-            }),
-    };
-    let others: Vec<Axis> = axes
-        .iter()
-        .filter(|x| appearance.as_ref().is_none_or(|a| a.modifier != x.name))
-        .map(|x| Axis {
-            name: x.name.clone(),
-            default: x.default.clone().unwrap_or_else(|| x.contexts[0].clone()),
-            contexts: x.contexts.clone(),
-        })
-        .collect();
-    // DTCG gives a modifier two contexts or more, as NSH does.
-    if !errors.is_empty() {
-        return Err(ExportError(errors));
-    }
-    // One structure in every selection: NSH's contexts add no names and
-    // change no kind.
-    let report = project.structure(options)?;
-    let named = |selection: &[(String, String)]| {
-        selection
-            .iter()
-            .map(|(a, c)| format!("{a}={c}"))
-            .collect::<Vec<_>>()
-            .join(", ")
-    };
-    for failure in &report.failures {
-        errors.push(format!(
-            "under {}: {}",
-            named(&failure.selection),
-            failure.error
-        ));
-    }
-    for difference in &report.differences {
-        let missing = difference.missing_in();
-        if missing.is_empty() {
-            let types: Vec<&str> = difference
-                .distinct_types()
-                .iter()
-                .map(|t| t.name())
-                .collect();
-            errors.push(format!(
-                "`{}` is a {} in some contexts: a token keeps one type in every context",
-                difference.path,
-                types.join(" or a ")
-            ));
-        } else {
-            let first = &report.selections[missing[0]];
-            errors.push(format!(
-                "`{}` is missing under {}{}: a context adds no tokens and removes none",
-                difference.path,
-                named(first),
-                match missing.len() {
-                    1 => String::new(),
-                    n => format!(" (and {} more selections)", n - 1),
-                }
-            ));
-        }
-    }
-    if !errors.is_empty() {
-        return Err(ExportError(errors));
-    }
+    // The layers, as DTCG authors them.
+    let mut layers = project.layers(&root_json, &axes)?;
+    expand(&mut layers);
 
-    // The values under the default contexts, in each appearance.
-    let picks = |picked: &[(&str, &str)]| -> Vec<(String, String)> {
-        others
-            .iter()
-            .map(|axis| {
-                let context = picked
+    // Tokens: names and value types.
+    let mut targets: HashMap<String, Target> = HashMap::new();
+    let mut by_name: HashMap<String, String> = HashMap::new();
+    let mut order: Vec<String> = Vec::new();
+    for token in base.iter() {
+        let path = token.path.to_string();
+        let token_type = token.token_type.as_deref().unwrap_or("").to_owned();
+        let pins: Vec<&Value> = std::iter::once(&token.extensions)
+            .chain(
+                layers
                     .iter()
-                    .find(|(name, _)| *name == axis.name)
-                    .map_or(axis.default.as_str(), |(_, c)| c);
-                (axis.name.clone(), context.to_owned())
-            })
-            .collect()
-    };
-    let base = project.values(&picks(&[]), appearance.as_ref(), options, &mut errors)?;
-
-    // Names: one token per name, and NSH's name forms.
-    let mut by_name: HashMap<&str, &str> = HashMap::new();
-    for (path, token) in &base.tokens {
-        if let Some(why) = names::refused(&token.name, token.kind) {
-            errors.push(format!(
-                "`{path}`: {why}; pin a name with $extensions[\"dev.nsh\"].name"
-            ));
-        }
-        if let Some(other) = by_name.insert(&token.name, path) {
-            errors.push(format!(
-                "`{other}` and `{path}` are both named `{}`; pin one's name with $extensions[\"dev.nsh\"].name",
-                token.name
-            ));
-        }
-    }
-
-    // Each other modifier's contexts: what each changes.
-    let mut modifiers = Map::new();
-    let mut layers: Vec<(String, BTreeMap<String, Written>)> = Vec::new();
-    for axis in &others {
-        let mut contexts = Map::new();
-        let mut changes = BTreeMap::new();
-        for context in &axis.contexts {
-            if *context == axis.default {
-                contexts.insert(context.clone(), Value::Object(Map::new()));
-                continue;
-            }
-            let values = project.values(
-                &picks(&[(&axis.name, context)]),
-                appearance.as_ref(),
-                options,
-                &mut errors,
-            )?;
-            let changed = base.changed_by(&values);
-            contexts.insert(context.clone(), css_vars(&changed));
-            changes.insert(context.clone(), changed);
-        }
-        modifiers.insert(
-            axis.name.clone(),
-            serde_json::json!({ "default": axis.default, "contexts": contexts }),
+                    .flat_map(Layer::entries)
+                    .filter_map(|entries| entries.get(&path))
+                    .map(|d| &d.extensions),
+            )
+            .collect();
+        let pinned_name = agreed(
+            &path,
+            "name",
+            pins.iter().map(|e| names::pinned(e)),
+            &mut errors,
         );
-        layers.push((axis.name.clone(), changes));
-    }
-
-    // Exact layers: every combination resolves to the base with each
-    // picked context over it, in order.
-    let combinations: usize = others.iter().map(|a| a.contexts.len()).product();
-    if combinations > options.max_combinations {
-        errors.push(format!(
-            "{combinations} combinations of contexts to check, more than {}",
-            options.max_combinations
-        ));
-    } else if others.len() > 1 {
-        for combination in product(&others) {
-            if combination
-                .iter()
-                .filter(|(a, c)| others.iter().any(|x| x.name == *a && x.default != *c))
-                .count()
-                < 2
-            {
-                // The default, or one context alone: what its layer is.
+        let pinned_type = agreed(
+            &path,
+            "type",
+            pins.iter().map(|e| {
+                e.get("dev.nsh")
+                    .and_then(|n| n.get("type"))
+                    .map(Value::to_string)
+            }),
+            &mut errors,
+        );
+        let Some(table) = types::value_type_of(&token_type) else {
+            errors.push(format!(
+                "`{path}`: a `{token_type}` token has no value type in NSH"
+            ));
+            continue;
+        };
+        let value_type = match pinned_type.and_then(|_| pins.iter().find_map(|e| types::pinned(e)))
+        {
+            None => table,
+            Some(Ok(t)) => t,
+            Some(Err(name)) => {
+                errors.push(format!(
+                    "`{path}`: $extensions[\"dev.nsh\"].type names `{name}`, which is no NSH value type"
+                ));
                 continue;
             }
-            let picked: Vec<(&str, &str)> = combination
-                .iter()
-                .map(|(a, c)| (a.as_str(), c.as_str()))
-                .collect();
-            let actual =
-                project.values(&picks(&picked), appearance.as_ref(), options, &mut errors)?;
-            let mut expected = base.flat();
-            for (axis, changes) in &layers {
-                let context = &combination.iter().find(|(a, _)| a == axis).unwrap().1;
-                if let Some(changed) = changes.get(context) {
-                    expected.extend(changed.iter().map(|(k, v)| (k.clone(), v.clone())));
+        };
+        let name = pinned_name.map_or_else(|| names::path_name(&path), str::to_owned);
+        if !names::valid(&name) {
+            errors.push(format!(
+                "`{path}`: NSH refuses the name `{name}` (bad-name): a name is a non-empty string \
+                 without `{{` or `}}`"
+            ));
+            continue;
+        }
+        if let Some(other) = by_name.insert(name.clone(), path.clone()) {
+            errors.push(format!(
+                "`{other}` and `{path}` are both named `{name}`; pin one's name with \
+                 $extensions[\"dev.nsh\"].name"
+            ));
+            continue;
+        }
+        targets.insert(
+            path.clone(),
+            Target {
+                name,
+                value_type,
+                token_type,
+            },
+        );
+        order.push(path);
+    }
+    if !errors.is_empty() {
+        return Err(failed(errors));
+    }
+
+    let converter = Converter {
+        rem: options.rem,
+        targets: &targets,
+    };
+    let convert =
+        |path: &str, definition: &layers::Definition, errors: &mut Vec<String>, at: &str| {
+            let target = &targets[path];
+            match converter.convert(
+                &target.token_type,
+                target.value_type,
+                &definition.value,
+                &definition.extensions,
+            ) {
+                Ok(value) => Some(value),
+                Err(e) => {
+                    errors.push(format!("`{path}`{at}: {e}"));
+                    None
                 }
             }
-            let named: Vec<String> = combination
-                .iter()
-                .map(|(a, c)| format!("{a}={c}"))
-                .collect();
-            for (name, value) in actual.flat() {
-                if expected.get(&name) != Some(&value) {
+        };
+
+    // A set after a modifier may set no token that modifier sets: NSH's
+    // tokens are its lowest layer.
+    for (i, layer) in layers.iter().enumerate() {
+        let Layer::Set {
+            name: set, entries, ..
+        } = layer
+        else {
+            continue;
+        };
+        for earlier in &layers[..i] {
+            let Layer::Modifier {
+                name: modifier,
+                contexts,
+                ..
+            } = earlier
+            else {
+                continue;
+            };
+            for path in entries.keys() {
+                if contexts.iter().any(|(_, c)| c.contains_key(path)) {
                     errors.push(format!(
-                        "`{name}` under {} is not what its modifiers' layers give: their contexts change it together",
-                        named.join(", ")
+                        "set `{set}` comes after modifier `{modifier}` in `resolutionOrder` and sets \
+                         `{path}`, which `{modifier}` also sets: NSH's tokens are its lowest layer, \
+                         below every modifier"
                     ));
                 }
             }
         }
     }
-    if !errors.is_empty() {
-        errors.sort();
-        errors.dedup();
-        return Err(ExportError(errors));
+
+    // Every token's own value: the last set's entry, else the entry of the
+    // last modifier whose default context sets it.
+    let mut document = ThemeDocument::new();
+    if root_json.get("resolutionOrder").is_some() {
+        document.name = root_json
+            .get("name")
+            .and_then(Value::as_str)
+            .map(str::to_owned);
+    }
+    for path in &order {
+        let Some((definition, at)) = own_definition(&layers, path) else {
+            errors.push(format!(
+                "`{path}` is set by no set and by no modifier's default context the export can read"
+            ));
+            continue;
+        };
+        let Some(value) = convert(path, definition, &mut errors, &at) else {
+            continue;
+        };
+        let target = &targets[path];
+        let mut token = Token::new(target.value_type, value).with_path(path.clone());
+        if let Some(doc) = base.get(path).and_then(|t| t.description.as_deref()) {
+            token = token.with_doc(doc);
+        }
+        document.insert_token(target.name.clone(), token);
     }
 
-    let mut tokens = Map::new();
-    let mut declared: Vec<(&String, &Token)> = base.tokens.iter().collect();
-    declared.sort_by(|a, b| a.1.name.cmp(&b.1.name));
-    for (path, token) in &declared {
-        let mut entry = Map::new();
-        entry.insert("kind".into(), token.kind.name().into());
-        entry.insert("path".into(), (*path).clone().into());
-        if let Some(doc) = &token.doc {
-            entry.insert("doc".into(), doc.clone().into());
+    // The modifiers, one to one.
+    for layer in &layers {
+        let Layer::Modifier {
+            name,
+            default,
+            contexts,
+            ..
+        } = layer
+        else {
+            continue;
+        };
+        let mut modifier = Modifier::new(default.clone());
+        for (context_name, entries) in contexts {
+            let mut context = Context::new();
+            for (path, definition) in entries.iter() {
+                let Some(target) = targets.get(path) else {
+                    errors.push(format!(
+                        "`{path}` in `{name}={context_name}` is no token of the default selection"
+                    ));
+                    continue;
+                };
+                if let Some(value) = convert(
+                    path,
+                    definition,
+                    &mut errors,
+                    &format!(" in `{name}={context_name}`"),
+                ) {
+                    context.set(target.name.clone(), value);
+                }
+            }
+            modifier.insert_context(context_name.clone(), context);
         }
-        tokens.insert(token.name.clone(), Value::Object(entry));
+        document.insert_modifier(name.clone(), modifier);
+        document.resolution_order.push(name.clone());
     }
-    let mut document = Map::new();
-    document.insert("cssVars".into(), css_vars(&base.flat()));
-    document.insert("tokens".into(), Value::Object(tokens));
-    if !modifiers.is_empty() {
-        document.insert("modifiers".into(), Value::Object(modifiers));
+    if !errors.is_empty() {
+        return Err(failed(errors));
     }
-    let mut names: Vec<(String, String)> = base
-        .tokens
-        .iter()
-        .map(|(p, t)| (p.clone(), t.name.clone()))
-        .collect();
-    names.sort();
-    Ok(Export {
-        document: Value::Object(document),
-        names,
-        left_out: base.left_out,
+
+    // Roles.
+    let mut warnings = Vec::new();
+    if let Some(text) = &options.role_map {
+        let map = roles::parse_map(text).map_err(failed)?;
+        for (role, path) in map {
+            if !names::valid(&role) {
+                errors.push(format!(
+                    "role `{role}`: NSH refuses the name: a name is a non-empty string without `{{` or `}}`"
+                ));
+                continue;
+            }
+            match targets.get(&path) {
+                Some(target) => {
+                    document.set_role(role, target.name.clone());
+                }
+                None => errors.push(format!(
+                    "role `{role}` maps onto `{path}`, which names no token"
+                )),
+            }
+        }
+    }
+    if !errors.is_empty() {
+        return Err(failed(errors));
+    }
+
+    // What NSH would refuse in the document.
+    for diagnostic in nsh_theme::check(&document) {
+        if diagnostic.is_error() {
+            errors.push(described(&diagnostic));
+        }
+    }
+    if let Some(text) = &options.roles {
+        let declarations = roles::parse_declarations(text).map_err(failed)?;
+        let resolved = nsh_theme::resolve(&document, &Selection::new(), &[]);
+        for diagnostic in nsh_theme::check_roles(&document, &[], &resolved, &declarations, &[]) {
+            if diagnostic.is_error() || diagnostic.code == nsh_theme::code::ROLE_UNMAPPED {
+                errors.push(described(&diagnostic));
+            } else {
+                warnings.push(described(&diagnostic));
+            }
+        }
+    }
+    if !errors.is_empty() {
+        return Err(failed(errors));
+    }
+
+    project.exact(&axes, &document, options)?;
+    Ok(Export { document, warnings })
+}
+
+/// Checks that `document` resolves, under every combination of one context
+/// per modifier, to the values `dxn_dtcg` resolves the project to: every
+/// token's value in NSH's forms. Refuses each token that differs, naming it
+/// and the selection, and a project of more combinations than
+/// `options.max_combinations`, with its count.
+pub fn verify_exact(
+    root: &str,
+    load: &dyn Fn(&str) -> Option<String>,
+    options: &Options,
+    document: &ThemeDocument,
+) -> Result<(), ExportError> {
+    let mut project = Project::new(root, load, options)?;
+    let axes = project.axes()?;
+    project.exact(&axes, document, options)
+}
+
+/// `<severity> <code> <pointer>: <message>`.
+fn described(diagnostic: &nsh_theme::Diagnostic) -> String {
+    format!(
+        "{} {} {}: {}",
+        diagnostic.severity.name(),
+        diagnostic.code,
+        diagnostic.pointer,
+        diagnostic.message
+    )
+}
+
+/// The reasons, sorted and once each.
+fn failed(mut errors: Vec<String>) -> ExportError {
+    errors.sort();
+    errors.dedup();
+    ExportError(errors)
+}
+
+/// The one value a token's definitions pin as `$extensions["dev.nsh"].<what>`;
+/// two different ones are refused.
+fn agreed<T: PartialEq + std::fmt::Debug>(
+    path: &str,
+    what: &str,
+    pins: impl Iterator<Item = Option<T>>,
+    errors: &mut Vec<String>,
+) -> Option<T> {
+    let mut found: Option<T> = None;
+    for pin in pins.flatten() {
+        match &found {
+            None => found = Some(pin),
+            Some(first) if *first != pin => {
+                errors.push(format!(
+                    "`{path}`'s definitions pin different $extensions[\"dev.nsh\"].{what}s \
+                     ({first:?} and {pin:?}); a token has one"
+                ));
+                return None;
+            }
+            Some(_) => {}
+        }
+    }
+    found
+}
+
+/// A `resolutionOrder` step with its sources' definitions and their
+/// groups' `$extends`.
+enum Layer {
+    Set {
+        name: String,
+        entries: Entries,
+        extends: Vec<Extends>,
+    },
+    Modifier {
+        name: String,
+        default: String,
+        contexts: Vec<(String, Entries)>,
+        /// Each context's, in `contexts`' order.
+        extends: Vec<Vec<Extends>>,
+    },
+}
+
+impl Layer {
+    fn entries(&self) -> Vec<&Entries> {
+        match self {
+            Layer::Set { entries, .. } => vec![entries],
+            Layer::Modifier { contexts, .. } => contexts.iter().map(|(_, e)| e).collect(),
+        }
+    }
+}
+
+/// A token's own value: the last set's entry, else the entry of the last
+/// modifier whose default context sets it, with where it is for messages.
+fn own_definition<'a>(layers: &'a [Layer], path: &str) -> Option<(&'a Definition, String)> {
+    let own = layers.iter().rev().find_map(|layer| match layer {
+        Layer::Set { entries, .. } => entries.get(path).map(|d| (d, String::new())),
+        Layer::Modifier { .. } => None,
+    });
+    own.or_else(|| {
+        layers.iter().rev().find_map(|layer| match layer {
+            Layer::Modifier {
+                name,
+                default,
+                contexts,
+                ..
+            } => contexts
+                .iter()
+                .find(|(c, _)| c == default)
+                .and_then(|(_, entries)| entries.get(path))
+                .map(|d| (d, format!(" in `{name}={default}`"))),
+            Layer::Set { .. } => None,
+        })
     })
 }
 
-/// Written values by name, each with its light and its dark value.
-type Written = BTreeMap<String, (Value, Value)>;
+/// One layer's entries: `(layer, context)`, the context 0 for a set.
+type Slot = (usize, usize);
 
-/// A modifier other than the appearance.
-struct Axis {
-    name: String,
-    default: String,
-    contexts: Vec<String>,
+fn slot(layers: &[Layer], (layer, context): Slot) -> &Entries {
+    match &layers[layer] {
+        Layer::Set { entries, .. } => entries,
+        Layer::Modifier { contexts, .. } => &contexts[context].1,
+    }
 }
 
-/// A token under one selection.
-#[derive(Clone)]
-struct Token {
-    name: String,
-    kind: Kind,
-    doc: Option<String>,
-    /// Its value in the light and the dark appearance: each written name
-    /// (the token's, a text style's parts') with its value.
-    light: Vec<(String, Value)>,
-    dark: Vec<(String, Value)>,
+fn slot_mut(layers: &mut [Layer], (layer, context): Slot) -> &mut Entries {
+    match &mut layers[layer] {
+        Layer::Set { entries, .. } => entries,
+        Layer::Modifier { contexts, .. } => &mut contexts[context].1,
+    }
 }
 
-/// The values of one selection: by path, and what was left out.
-struct Values {
-    tokens: BTreeMap<String, Token>,
-    left_out: Vec<String>,
-}
-
-impl Values {
-    /// Every written name with its light and dark value.
-    fn flat(&self) -> BTreeMap<String, (Value, Value)> {
-        let mut out = BTreeMap::new();
-        for token in self.tokens.values() {
-            for ((name, light), (_, dark)) in token.light.iter().zip(&token.dark) {
-                out.insert(name.clone(), (light.clone(), dark.clone()));
+/// Copies each extended group's token definitions under the extending
+/// group's path, as DTCG's `$extends` does: the extending group's own
+/// members win, and a copied alias stays an alias.
+///
+/// - An `$extends` in a set holds in every selection, so the target's
+///   definitions in every layer are copied into that layer: the copy then
+///   follows whatever context sets the target.
+/// - An `$extends` in a context holds only when it is picked, so the copies
+///   go into that context: the target's definition there, else the
+///   target's own value.
+/// - A member the extending group defines itself, in the same layer or in
+///   any set, is not copied over.
+///
+/// The target may be in any document, and may itself be extended: the
+/// copies repeat until nothing changes. The exactness check proves the
+/// result under every combination.
+fn expand(layers: &mut [Layer]) {
+    let mut slots: Vec<Slot> = Vec::new();
+    let mut directives: Vec<(Slot, bool, Extends)> = Vec::new();
+    for (i, layer) in layers.iter().enumerate() {
+        match layer {
+            Layer::Set { extends, .. } => {
+                slots.push((i, 0));
+                directives.extend(extends.iter().map(|e| ((i, 0), true, e.clone())));
+            }
+            Layer::Modifier { extends, .. } => {
+                for (c, context) in extends.iter().enumerate() {
+                    slots.push((i, c));
+                    directives.extend(context.iter().map(|e| ((i, c), false, e.clone())));
+                }
             }
         }
-        out
     }
-
-    /// What `other` sets otherwise than these.
-    fn changed_by(&self, other: &Values) -> BTreeMap<String, (Value, Value)> {
-        let mine = self.flat();
-        other
-            .flat()
-            .into_iter()
-            .filter(|(name, value)| mine.get(name) != Some(value))
-            .collect()
-    }
-}
-
-impl Clone for Values {
-    fn clone(&self) -> Self {
-        Self {
-            tokens: self.tokens.clone(),
-            left_out: self.left_out.clone(),
+    // A member a set defines is the extending group's own in every
+    // selection, so it is never copied over.
+    let in_sets: HashSet<String> = layers
+        .iter()
+        .filter_map(|layer| match layer {
+            Layer::Set { entries, .. } => Some(entries.keys().map(str::to_owned)),
+            Layer::Modifier { .. } => None,
+        })
+        .flatten()
+        .collect();
+    let mut copied: HashSet<(Slot, String)> = HashSet::new();
+    for _ in 0..=directives.len() {
+        let mut changes: Vec<(Slot, String, Definition)> = Vec::new();
+        for (at, in_set, extends) in &directives {
+            let prefix = format!("{}.", extends.target);
+            if *in_set {
+                for &each in &slots {
+                    for (path, definition) in slot(layers, each).iter() {
+                        if let Some(rest) = path.strip_prefix(&prefix) {
+                            changes.push((
+                                each,
+                                layers::join(&extends.group, rest),
+                                definition.clone(),
+                            ));
+                        }
+                    }
+                }
+            } else {
+                let mut paths: Vec<&str> = Vec::new();
+                for &each in &slots {
+                    for path in slot(layers, each).keys() {
+                        if path.starts_with(&prefix) && !paths.contains(&path) {
+                            paths.push(path);
+                        }
+                    }
+                }
+                for path in paths {
+                    let definition = slot(layers, *at)
+                        .get(path)
+                        .or_else(|| own_definition(layers, path).map(|(d, _)| d));
+                    if let Some(definition) = definition {
+                        changes.push((
+                            *at,
+                            layers::join(&extends.group, &path[prefix.len()..]),
+                            definition.clone(),
+                        ));
+                    }
+                }
+            }
+        }
+        let mut changed = false;
+        for (at, path, definition) in changes {
+            let key = (at, path);
+            let entries = slot_mut(layers, at);
+            if in_sets.contains(&key.1) || (entries.contains_key(&key.1) && !copied.contains(&key))
+            {
+                // The extending group's own member wins.
+                continue;
+            }
+            if entries.get(&key.1) != Some(&definition) {
+                entries.insert(key.1.clone(), definition);
+                copied.insert(key);
+                changed = true;
+            }
+        }
+        if !changed {
+            break;
         }
     }
 }
 
-/// Written values as `cssVars`: one in both appearances in `theme`, the
-/// others in `light` and `dark`.
-fn css_vars(values: &BTreeMap<String, (Value, Value)>) -> Value {
-    let (mut theme, mut light, mut dark) = (Map::new(), Map::new(), Map::new());
-    for (name, (l, d)) in values {
-        if l == d {
-            theme.insert(name.clone(), l.clone());
-        } else {
-            light.insert(name.clone(), l.clone());
-            dark.insert(name.clone(), d.clone());
-        }
-    }
-    let mut out = Map::new();
-    for (section, values) in [("theme", theme), ("light", light), ("dark", dark)] {
-        if !values.is_empty() {
-            out.insert(section.into(), Value::Object(values));
-        }
-    }
-    Value::Object(out)
+/// `a=x, b=y`.
+fn named(selection: &[(String, String)]) -> String {
+    selection
+        .iter()
+        .map(|(a, c)| format!("{a}={c}"))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
-/// Every combination of the modifiers' contexts.
-fn product(axes: &[Axis]) -> Vec<Vec<(String, String)>> {
+/// Every combination of one context per modifier, the first modifier
+/// varying slowest.
+fn product(axes: &[ModifierAxis]) -> Vec<Vec<(String, String)>> {
     let mut out: Vec<Vec<(String, String)>> = vec![Vec::new()];
     for axis in axes {
         out = out
@@ -456,13 +619,44 @@ fn product(axes: &[Axis]) -> Vec<Vec<(String, String)>> {
     out
 }
 
+/// A modifier's default context: its `default`, else its first.
+fn default_of(axis: &ModifierAxis) -> String {
+    axis.default
+        .clone()
+        .unwrap_or_else(|| axis.contexts[0].clone())
+}
+
 /// The project as the runtime resolves it, its documents loaded on demand.
 struct Project<'a> {
     runtime: DtcgRuntime,
+    root: String,
     load: &'a dyn Fn(&str) -> Option<String>,
 }
 
-impl Project<'_> {
+impl<'a> Project<'a> {
+    fn new(
+        root: &str,
+        load: &'a dyn Fn(&str) -> Option<String>,
+        options: &Options,
+    ) -> Result<Self, ExportError> {
+        let mut project = Project {
+            runtime: DtcgRuntime::with_options(
+                RuntimeOptions::default()
+                    .with_extensions(ValueExtensions::all())
+                    .with_limits(
+                        RuntimeLimits::default().with_max_selections(options.max_combinations),
+                    ),
+            ),
+            root: root.to_owned(),
+            load,
+        };
+        project
+            .runtime
+            .set_root(root)
+            .map_err(|e| ExportError(vec![e.to_string()]))?;
+        Ok(project)
+    }
+
     /// Loads what `resolution` asks for; `Ok(None)` when it asked.
     fn provide<T>(&mut self, resolution: Resolution<T>) -> Result<Option<T>, ExportError> {
         match resolution {
@@ -482,40 +676,43 @@ impl Project<'_> {
         }
     }
 
-    /// Every selection's structure compared ([`dxn_dtcg::DtcgRuntime::check_structure`]).
-    fn structure(&mut self, options: &Options) -> Result<dxn_dtcg::StructureReport, ExportError> {
-        let fail = |e: dxn_dtcg::DtcgError| ExportError(vec![e.to_string()]);
+    /// Runs `step` until the documents it needs are loaded.
+    fn ready<T>(
+        &mut self,
+        step: impl Fn(&DtcgRuntime) -> Result<Resolution<T>, dxn_dtcg::DtcgError>,
+    ) -> Result<T, ExportError> {
         loop {
-            let resolution = self.runtime.selection_space().map_err(fail)?;
-            let Some(space) = self.provide(resolution)? else {
-                continue;
-            };
-            if space
-                .combinations()
-                .is_none_or(|n| n > options.max_combinations)
-            {
-                return Err(ExportError(vec![format!(
-                    "more than {} combinations of contexts to check",
-                    options.max_combinations
-                )]));
-            }
-            let resolution = self.runtime.check_structure(&space).map_err(fail)?;
-            if let Some(report) = self.provide(resolution)? {
-                return Ok(report);
+            let resolution = step(&self.runtime).map_err(|e| ExportError(vec![e.to_string()]))?;
+            if let Some(value) = self.provide(resolution)? {
+                return Ok(value);
             }
         }
     }
 
-    fn axes(&mut self) -> Result<Vec<dxn_dtcg::ModifierAxis>, ExportError> {
-        loop {
-            let resolution = self
-                .runtime
-                .modifiers()
-                .map_err(|e| ExportError(vec![e.to_string()]))?;
-            if let Some(axes) = self.provide(resolution)? {
-                return Ok(axes);
-            }
+    fn root_json(&self) -> Result<Value, ExportError> {
+        let text = (self.load)(&self.root)
+            .ok_or_else(|| ExportError(vec![format!("cannot read `{}`", self.root)]))?;
+        serde_json::from_str(&text).map_err(|e| ExportError(vec![format!("`{}`: {e}", self.root)]))
+    }
+
+    fn axes(&mut self) -> Result<Vec<ModifierAxis>, ExportError> {
+        self.ready(|runtime| runtime.modifiers())
+    }
+
+    /// Refuses more combinations of contexts than `max_combinations`.
+    fn combinations(&self, axes: &[ModifierAxis], options: &Options) -> Result<usize, ExportError> {
+        let count = axes
+            .iter()
+            .try_fold(1usize, |n, a| n.checked_mul(a.contexts.len()))
+            .unwrap_or(usize::MAX);
+        if count > options.max_combinations {
+            return Err(ExportError(vec![format!(
+                "the project has {count} combinations of contexts, more than the {} the checks \
+                 resolve (--max-combinations)",
+                options.max_combinations
+            )]));
         }
+        Ok(count)
     }
 
     fn resolve(&mut self, selection: &[(String, String)]) -> Result<ResolvedTokens, ExportError> {
@@ -523,85 +720,205 @@ impl Project<'_> {
             .iter()
             .map(|(a, c)| (a.as_str(), c.as_str()))
             .collect();
-        loop {
-            let resolution = self
-                .runtime
-                .resolve(&selection)
-                .map_err(|e| ExportError(vec![e.to_string()]))?;
-            if let Some(tokens) = self.provide(resolution)? {
-                return Ok(tokens);
-            }
-        }
+        self.ready(|runtime| runtime.resolve(&selection))
     }
 
-    /// The tokens under `picks` (the other modifiers' contexts), in each
-    /// appearance; a value that cannot be written joins `errors`.
-    fn values(
+    /// The definitions of `source`'s token documents, in order.
+    fn definitions(
         &mut self,
-        picks: &[(String, String)],
-        appearance: Option<&Appearance>,
-        options: &Options,
-        errors: &mut Vec<String>,
-    ) -> Result<Values, ExportError> {
-        let with = |context: Option<&String>| {
-            let mut selection = picks.to_vec();
-            if let (Some(a), Some(c)) = (appearance, context) {
-                selection.push((a.modifier.clone(), c.clone()));
-            }
-            selection
-        };
-        let light = self.resolve(&with(appearance.map(|a| &a.light)))?;
-        let dark = match appearance {
-            Some(a) => self.resolve(&with(Some(&a.dark)))?,
-            None => light.clone(),
-        };
-        let extensions = self.runtime.options().extensions.clone();
-        let mut out = Values {
-            tokens: BTreeMap::new(),
-            left_out: Vec::new(),
-        };
-        for token in light.iter() {
-            let path = token.path.to_string();
-            let token_type = token.token_type.as_deref().unwrap_or("");
-            let Some(kind) = kinds::kind_of(token_type, &path, &token.extensions) else {
-                out.left_out.push(format!(
-                    "`{path}`: NSH has no kind of a `{token_type}` token"
-                ));
-                continue;
-            };
-            let Some(dark_token) = dark.get(&path) else {
-                errors.push(format!("`{path}` is in the light appearance only"));
-                continue;
-            };
-            let name = names::name_of(&path, kind, &token.extensions);
-            let write = |t: &dxn_dtcg::ResolvedToken| -> Result<Vec<(String, Value)>, String> {
-                let typed = t.typed(&extensions).map_err(|e| e.to_string());
-                let typed = match (kind, typed) {
-                    (Kind::String | Kind::Boolean, _) => dxn_dtcg::values::TypedValue::Number(0.0),
-                    (_, typed) => typed?,
-                };
-                let written = values::write(kind, &typed, &t.value, options.rem, &t.extensions)?;
-                Ok(written
-                    .into_iter()
-                    .map(|(suffix, v)| (format!("{name}{suffix}"), v))
-                    .collect())
-            };
-            match (write(token), write(dark_token)) {
-                (Ok(l), Ok(d)) => {
-                    out.tokens.insert(
-                        path,
-                        Token {
-                            name,
-                            kind,
-                            doc: token.description.as_deref().map(str::to_owned),
-                            light: l,
-                            dark: d,
-                        },
-                    );
+        source: &Value,
+        entries: &mut Entries,
+        extends: &mut Vec<Extends>,
+    ) -> Result<(), ExportError> {
+        let occurrences = self.ready(|runtime| runtime.inspect_source(source, &[]))?;
+        for occurrence in occurrences {
+            layers::flatten(occurrence.value(), entries, extends).map_err(|e| {
+                ExportError(vec![format!("`{}`: {e}", occurrence.resource().as_str())])
+            })?;
+        }
+        Ok(())
+    }
+
+    /// Every `resolutionOrder` step with its sources' definitions; a token
+    /// document is one set.
+    fn layers(&mut self, root: &Value, axes: &[ModifierAxis]) -> Result<Vec<Layer>, ExportError> {
+        if root.get("resolutionOrder").is_none() {
+            let mut entries = Entries::new();
+            let mut extends = Vec::new();
+            layers::flatten(root, &mut entries, &mut extends)
+                .map_err(|e| ExportError(vec![format!("`{}`: {e}", self.root)]))?;
+            return Ok(vec![Layer::Set {
+                name: self.root.clone(),
+                entries,
+                extends,
+            }]);
+        }
+        let steps = layers::steps(root).map_err(|e| ExportError(vec![e]))?;
+        let mut out = Vec::with_capacity(steps.len());
+        for step in steps {
+            match step {
+                Step::Set { name, sources } => {
+                    let mut entries = Entries::new();
+                    let mut extends = Vec::new();
+                    for source in &sources {
+                        self.definitions(source, &mut entries, &mut extends)?;
+                    }
+                    out.push(Layer::Set {
+                        name,
+                        entries,
+                        extends,
+                    });
                 }
-                (Err(e), _) | (_, Err(e)) => errors.push(format!("`{path}`: {e}")),
+                Step::Modifier { name, contexts } => {
+                    let Some(axis) = axes.iter().find(|a| a.name == name) else {
+                        return Err(ExportError(vec![format!(
+                            "the modifier `{name}` is no modifier of the resolver"
+                        )]));
+                    };
+                    let mut read = Vec::with_capacity(contexts.len());
+                    let mut extends = Vec::with_capacity(contexts.len());
+                    for (context, sources) in contexts {
+                        let mut entries = Entries::new();
+                        let mut context_extends = Vec::new();
+                        for source in &sources {
+                            self.definitions(source, &mut entries, &mut context_extends)?;
+                        }
+                        read.push((context, entries));
+                        extends.push(context_extends);
+                    }
+                    out.push(Layer::Modifier {
+                        name,
+                        default: default_of(axis),
+                        contexts: read,
+                        extends,
+                    });
+                }
             }
         }
         Ok(out)
+    }
+
+    /// Every selection's structure compared ([`dxn_dtcg::DtcgRuntime::check_structure`]):
+    /// NSH's contexts add no names and change no type.
+    fn structure(&mut self) -> Result<(), ExportError> {
+        let space = self.ready(|runtime| runtime.selection_space())?;
+        let report = self.ready(|runtime| runtime.check_structure(&space))?;
+        let mut errors = Vec::new();
+        for failure in &report.failures {
+            errors.push(if failure.selection.is_empty() {
+                failure.error.to_string()
+            } else {
+                format!("under {}: {}", named(&failure.selection), failure.error)
+            });
+        }
+        for difference in &report.differences {
+            let missing = difference.missing_in();
+            if missing.is_empty() {
+                let types: Vec<&str> = difference
+                    .distinct_types()
+                    .iter()
+                    .map(|t| t.name())
+                    .collect();
+                errors.push(format!(
+                    "`{}` is a {} in some contexts: a token keeps one type in every context",
+                    difference.path,
+                    types.join(" or a ")
+                ));
+            } else {
+                let first = &report.selections[missing[0]];
+                errors.push(format!(
+                    "`{}` is missing under {}{}: a context adds no tokens and removes none",
+                    difference.path,
+                    named(first),
+                    match missing.len() {
+                        1 => String::new(),
+                        n => format!(" (and {} more selections)", n - 1),
+                    }
+                ));
+            }
+        }
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(failed(errors))
+        }
+    }
+
+    /// [`verify_exact`] on this project.
+    fn exact(
+        &mut self,
+        axes: &[ModifierAxis],
+        document: &ThemeDocument,
+        options: &Options,
+    ) -> Result<(), ExportError> {
+        self.combinations(axes, options)?;
+        let mut by_path: HashMap<&str, (&str, ValueType)> = HashMap::new();
+        for (name, token) in document.tokens.iter() {
+            if let Some(path) = &token.path {
+                by_path.insert(path, (name, token.value_type));
+            }
+        }
+        let none = HashMap::new();
+        let converter = Converter {
+            rem: options.rem,
+            targets: &none,
+        };
+        let mut errors = Vec::new();
+        for combination in product(axes) {
+            let under = if combination.is_empty() {
+                String::new()
+            } else {
+                format!(" under {}", named(&combination))
+            };
+            let tokens = self.resolve(&combination)?;
+            let mut selection = Selection::new();
+            for (modifier, context) in &combination {
+                selection.set(modifier.clone(), context.clone());
+            }
+            let resolved = nsh_theme::resolve(document, &selection, &[]);
+            for diagnostic in &resolved.diagnostics {
+                errors.push(format!("the document{under}: {}", described(diagnostic)));
+            }
+            let mut seen = HashSet::new();
+            for token in tokens.iter() {
+                let path: &str = &token.path;
+                let Some(&(name, value_type)) = by_path.get(path) else {
+                    errors.push(format!("`{path}`{under} is no token of the document"));
+                    continue;
+                };
+                seen.insert(path);
+                let token_type = token.token_type.as_deref().unwrap_or("");
+                let expected = match converter.convert(
+                    token_type,
+                    value_type,
+                    &token.value,
+                    &token.extensions,
+                ) {
+                    Ok(value) => value,
+                    Err(e) => {
+                        errors.push(format!("`{path}`{under}: {e}"));
+                        continue;
+                    }
+                };
+                match resolved.get(name) {
+                    Some(actual) if *actual == expected => {}
+                    actual => errors.push(format!(
+                        "`{path}` (`{name}`){under}: DTCG resolves it to {}, the document to {}",
+                        expected.to_json(),
+                        actual.map_or("nothing".to_owned(), |v| v.to_json().to_string())
+                    )),
+                }
+            }
+            for path in by_path.keys() {
+                if !seen.contains(path) {
+                    errors.push(format!("`{path}`{under} is no token of the project"));
+                }
+            }
+        }
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(failed(errors))
+        }
     }
 }

@@ -26,4 +26,4 @@ Subdomains:
 - [resolution](resolution/INDEX.md): how `export` resolves and checks a project (`src/lib.rs`).
 - [command](command/INDEX.md): the `rayx-dtcg` command (`src/main.rs`).
 
-What the output means (kinds, names, values, document layout) is in [theme-format](../theme-format/INDEX.md).
+What the output means (names, value types, values, references, layers, roles) is in `README.md`.

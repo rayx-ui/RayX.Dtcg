@@ -1,8 +1,10 @@
 # RayX.Dtcg contributor guidance
 
-Exports DTCG 2025.10 projects as NSH theme documents: `crates/rayx_dtcg` (library `export` and the `rayx-dtcg`
-command). It depends on `dxn_dtcg` for resolution and on nothing of NSH: the theme document's format is NSH's
-(`nsh-root/_projects/theme-collections/theme-document.md` in the NSH fork's workspace), written as JSON.
+Exports DTCG 2025.10 projects as NSH theme documents: `crates/rayx_dtcg` (library `export` and `verify_exact`, and the
+`rayx-dtcg` command). The format is NSH's, specified in the NSH fork's `docs/dev/theme-format.md`; the crate builds it
+with the fork's `nsh-theme` (the document model, `write`, `resolve` and `check_roles`) and resolves DTCG with
+`dxn_dtcg`. `README.md` describes what the export writes: names, value types, values, references, layers, the role
+map and the exactness check, and the `dev.nsh.*` extensions it reads (`name`, `type`, `gradient`).
 
 ## Validation
 
@@ -19,9 +21,15 @@ Each feature has its own integration-test group in `crates/rayx_dtcg/tests/<feat
 
 ## Dependencies
 
-`dxn_dtcg` is pinned to a dXn.Dtcg release tag (`v1.4.0`) in `crates/rayx_dtcg/Cargo.toml`, not the workspace
-table, so that moving it releases this crate. Move to a new release by changing the tag in a `fix(deps):` commit (or
-`feat(deps):` when the export uses something new). A change this crate needs from dXn.Dtcg is released there first.
+Dependencies come from git tags only, never paths, branches or commits:
+
+- `dxn_dtcg` at a dXn.Dtcg release tag (`v1.4.0`). A change this crate needs from dXn.Dtcg is released there first.
+- `nsh-theme` at an `nshx-*` tag of the NSH fork (`nshx-0.6.0-1`). It needs only serde and serde_json, and is the one
+  NSH crate allowed: CI rejects any other `nsh-*`, `gpui*` or `rayx*` crate in the tree.
+
+Both are declared in `crates/rayx_dtcg/Cargo.toml`, not the workspace table, so that moving a tag releases this crate.
+Move to a new release by changing the tag in a `fix(deps):` commit (or `feat(deps):` when the export uses something
+new).
 
 ## Commits
 

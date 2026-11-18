@@ -1,7 +1,7 @@
 [package]
 name = "rayx_dtcg"
-description = "Exports a DTCG 2025.10 design-token project as an NSH theme document (cssVars, tokens, modifiers), and checks that it is current."
-keywords = ["dtcg", "design-tokens", "nsh", "theme"]
+description = "Exports a DTCG 2025.10 design-token project as an NSH theme document (typed tokens, modifiers, references and roles), checks it exact under every combination of contexts, and checks that it is current."
+keywords = ["dtcg", "design-tokens", "nsh", "theme", "roles"]
 categories = ["command-line-utilities", "gui"]
 readme = "../../README.md"
 version.workspace = true
@@ -20,4 +20,9 @@ path = "src/main.rs"
 # `dxn.dtcg.boolean`. Declared here, not in the workspace table, so that a commit moving the tag
 # changes this crate's packaged files and release-plz releases it (docs/releasing.md).
 dxn_dtcg = { git = "https://github.com/dXnSix/dXn.Dtcg", tag = "v1.4.0" }
+# NSH's theme format: the document model, its reader and writer, `resolve` and
+# `check_roles`. It needs only serde and serde_json, and is the one NSH crate
+# this crate may depend on. An `nshx-*` tag of the fork, declared here for the
+# same reason as `dxn_dtcg`.
+nsh-theme = { git = "https://github.com/dXnSix/nsh", tag = "nshx-0.6.0-1" }
 serde_json.workspace = true

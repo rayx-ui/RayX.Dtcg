@@ -125,6 +125,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
+name = "nsh-theme"
+version = "0.6.0"
+source = "git+https://github.com/dXnSix/nsh?tag=nshx-0.6.0-1#df7b2dfa6d62e76f30477bb424a3f41cfea6600c"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -147,6 +156,7 @@ name = "rayx_dtcg"
 version = "0.2.0"
 dependencies = [
  "dxn_dtcg",
+ "nsh-theme",
  "serde_json",
 ]
 

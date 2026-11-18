@@ -4,12 +4,12 @@ agentx:
   scope: knowledge/exporter/resolution
   status: current
   created: 2026-11-17T01:30:00+01:00
-  updated: 2026-11-17T01:26:10+01:00
+  updated: 2026-11-18T18:10:00+01:00
   topics:
     - resolution
-    - exact-layers
+    - exactness
     - structure-check
-    - appearance
+    - layers
   supersedes: []
   superseded_by: []
 ---
@@ -17,37 +17,35 @@ agentx:
 
 ## Purpose And Usage
 
-Read when touching how `export` resolves a project, picks the appearance, checks structure or checks
-exact layers. All of it is in `src/lib.rs`.
+Read when touching how `export` resolves a project, checks its structure, copies its layers or checks
+exactness. The resolution is in `src/lib.rs` (`Project`, `verify_exact`) and `src/layers.rs`.
 
 ## Current Technical Shape
 
-- `Project { runtime: DtcgRuntime, load }`. `provide` loops until `Resolution::Ready`, feeding requested
-  documents from `load`. It backs `axes()` (the resolver's modifiers), `structure()` (selection space,
+- `Project { runtime: DtcgRuntime, root, load }`. `provide` loops until `Resolution::Ready`, feeding
+  requested documents from `load`. It backs `axes()` (the resolver's modifiers), `combinations()` (refuses
+  more contexts combinations than `max_combinations`, with the count), `structure()` (selection space,
   then `check_structure`) and `resolve(selection)`.
-- **Appearance.** `Options.appearance` names the modifier and its light and dark contexts (an unknown
-  modifier fails at once, an unknown context is a reason). With `None`, the first modifier that has both
-  a `light` and a `dark` context is the appearance; with none, dark equals light everywhere.
-- **Other modifiers** (axes) keep their name, contexts and default (the resolver's default, else the
-  first context).
-- **Structure.** `dxn_dtcg`'s structure check over every selection (refused above `max_combinations`): a
-  token missing under some selection, or with different types, is refused.
-- **Values of a selection.** The light and dark selections are resolved (appearance context added to the
-  picks). Per token: its kind (none: `left_out`), a dark counterpart (else refused), its name, and its
-  written values (a typography token writes several names by suffix).
-- **Layers.** The base is every axis at its default. For each non-default context of each axis alone,
-  `changed_by` gives what it changes over the base: that context's overlay.
-- **Exact layers.** With more than one axis, every combination with two or more non-default contexts
-  is resolved and compared with the base plus each picked context's overlay, in axis order; a written
-  name that differs is refused (``under a=x, b=y … their contexts change it together``). More
-  combinations than `max_combinations` is a reason.
-- The document is assembled last (layout in [theme-format](../../theme-format/state.md)).
+- **Structure.** `dxn_dtcg`'s structure check over every selection: a token missing under some selection,
+  or with different types, is refused, since NSH's contexts add no names.
+- **Layers.** `layers.rs` reads the root's `resolutionOrder` as authored: sets and modifiers, each context
+  with exactly its DTCG entries. `$extends` groups are copied (`flatten`): a set's copy follows the
+  contexts that set the target, a context's copy lands in that context. The sets are merged into `tokens`
+  (the later set winning); a token only modifiers set takes the entry of the last modifier whose default
+  context sets it; a set placed after a modifier may set no token that modifier sets (refused).
+- **Exactness.** `verify_exact` resolves every combination of one context per modifier (the empty
+  selection when there are no modifiers) with `dxn_dtcg` and the document with `nsh_theme::resolve`, and
+  compares each token's value in NSH's forms; a token that differs is refused (``` `path` (`name`) under
+  a=x, b=y: DTCG resolves it to …, the document to … ```), and so is a token on one side only or a
+  diagnostic of the resolution. `export` runs it last, after the document passed `nsh_theme::check` and
+  the role check.
 
 ## Backlinks
 
 - [lib.rs](../../../../../crates/rayx_dtcg/src/lib.rs)
-- [refusals tests](../../../../../crates/rayx_dtcg/tests/refusals.rs)
-- [document tests](../../../../../crates/rayx_dtcg/tests/document.rs)
+- [layers.rs](../../../../../crates/rayx_dtcg/src/layers.rs)
+- [layers tests](../../../../../crates/rayx_dtcg/tests/layers.rs)
+- [exactness tests](../../../../../crates/rayx_dtcg/tests/exactness.rs)
 - 2026-11-17 current [exporter state](../state.md)
 - 2026-11-17 current [resolution rules](rules.md)
 - 2026-11-17 current [resolution hypotheses](hypotheses.md)

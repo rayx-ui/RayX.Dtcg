@@ -1,19 +1,19 @@
 //! `rayx-dtcg`: exports a DTCG project as an NSH theme document.
 //!
 //! ```text
-//! rayx-dtcg <root.json> [-o <theme.json>] [--appearance <modifier>[=<light>,<dark>]]
-//!          [--rem <px>] [--names <names.json>] [--check]
+//! rayx-dtcg <ROOT> -o <FILE> [--role-map <FILE>] [--roles <FILE>] [--rem <PX>]
+//!           [--max-combinations <N>] [--check]
 //! ```
 //!
-//! `--check` writes nothing: it fails (exit 1) when `-o`'s file is not what
-//! the export gives, for CI. `--names` writes each token's path and the NSH
-//! name it took.
+//! `--check` writes nothing: it fails (exit 1) when `-o`'s file is missing
+//! or is not what the export gives, for CI. A refused project fails (exit 1)
+//! with every reason; a usage error exits with 2.
 
 use std::{path::PathBuf, process::ExitCode};
 
-use rayx_dtcg::{Appearance, Options, export};
+use rayx_dtcg::{Options, export};
 
-const USAGE: &str = "usage: rayx-dtcg <root.json> [-o <theme.json>] [--appearance <modifier>[=<light>,<dark>]] [--rem <px>] [--names <names.json>] [--check]";
+const USAGE: &str = "usage: rayx-dtcg <ROOT> -o <FILE> [--role-map <FILE>] [--roles <FILE>] [--rem <PX>] [--max-combinations <N>] [--check]";
 
 fn main() -> ExitCode {
     match run(std::env::args().skip(1).collect()) {
@@ -25,10 +25,15 @@ fn main() -> ExitCode {
     }
 }
 
+fn read(path: &PathBuf) -> Result<String, String> {
+    std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))
+}
+
 fn run(args: Vec<String>) -> Result<ExitCode, String> {
     let mut root = None;
     let mut out = None;
-    let mut names = None;
+    let mut role_map = None;
+    let mut roles = None;
     let mut check = false;
     let mut options = Options::default();
     let mut args = args.into_iter();
@@ -39,29 +44,29 @@ fn run(args: Vec<String>) -> Result<ExitCode, String> {
         };
         match arg.as_str() {
             "-o" | "--out" => out = Some(PathBuf::from(value("-o")?)),
-            "--names" => names = Some(PathBuf::from(value("--names")?)),
+            "--role-map" => role_map = Some(PathBuf::from(value("--role-map")?)),
+            "--roles" => roles = Some(PathBuf::from(value("--roles")?)),
             "--rem" => {
                 options.rem = value("--rem")?
                     .parse()
                     .map_err(|_| format!("--rem takes a number of pixels\n{USAGE}"))?;
             }
-            "--appearance" => {
-                let spec = value("--appearance")?;
-                let (modifier, contexts) = spec
-                    .split_once('=')
-                    .unwrap_or((spec.as_str(), "light,dark"));
-                let Some((light, dark)) = contexts.split_once(',') else {
-                    return Err(format!(
-                        "--appearance takes <modifier>=<light>,<dark>\n{USAGE}"
-                    ));
-                };
-                options.appearance = Some(Appearance {
-                    modifier: modifier.to_owned(),
-                    light: light.to_owned(),
-                    dark: dark.to_owned(),
-                });
+            "--max-combinations" => {
+                options.max_combinations = value("--max-combinations")?
+                    .parse()
+                    .map_err(|_| format!("--max-combinations takes a whole number\n{USAGE}"))?;
             }
             "--check" => check = true,
+            "--appearance" => {
+                return Err(format!(
+                    "--appearance was removed: light and dark are an ordinary modifier of the theme document now\n{USAGE}"
+                ));
+            }
+            "--names" => {
+                return Err(format!(
+                    "--names was removed: each token's DTCG path is its `path` in the theme document\n{USAGE}"
+                ));
+            }
             "-h" | "--help" => {
                 println!("{USAGE}");
                 return Ok(ExitCode::SUCCESS);
@@ -72,6 +77,13 @@ fn run(args: Vec<String>) -> Result<ExitCode, String> {
         }
     }
     let root = root.ok_or(USAGE)?;
+    let out = out.ok_or_else(|| format!("-o <FILE> is required\n{USAGE}"))?;
+    if let Some(path) = &role_map {
+        options.role_map = Some(read(path)?);
+    }
+    if let Some(path) = &roles {
+        options.roles = Some(read(path)?);
+    }
     // Resource ids are relative to the root's folder, as its `$ref`s are.
     let dir = root.parent().map(PathBuf::from).unwrap_or_default();
     let id = root
@@ -89,42 +101,30 @@ fn run(args: Vec<String>) -> Result<ExitCode, String> {
             return Ok(ExitCode::FAILURE);
         }
     };
-    for line in &export.left_out {
-        eprintln!("rayx-dtcg: left out: {line}");
+    for line in &export.warnings {
+        eprintln!("rayx-dtcg: {line}");
     }
     let text = export.text();
-    if let Some(path) = &names {
-        let list: serde_json::Map<String, serde_json::Value> = export
-            .names
-            .iter()
-            .map(|(p, n)| (p.clone(), n.clone().into()))
-            .collect();
-        let mut json = serde_json::to_string_pretty(&list).unwrap_or_default();
-        json.push('\n');
-        std::fs::write(path, json).map_err(|e| format!("{}: {e}", path.display()))?;
-    }
-    match (out, check) {
-        (Some(path), true) => {
-            let current = std::fs::read_to_string(&path).unwrap_or_default();
-            if current == text {
-                Ok(ExitCode::SUCCESS)
-            } else {
+    if check {
+        return Ok(match std::fs::read_to_string(&out) {
+            Ok(current) if current == text => ExitCode::SUCCESS,
+            Ok(_) => {
                 eprintln!(
-                    "rayx-dtcg: {} is not the export of {}: run rayx-dtcg without --check",
-                    path.display(),
+                    "rayx-dtcg: {} is stale: it is not the export of {}; run rayx-dtcg without --check",
+                    out.display(),
                     root.display()
                 );
-                Ok(ExitCode::FAILURE)
+                ExitCode::FAILURE
             }
-        }
-        (None, true) => Err(format!("--check needs -o <theme.json>\n{USAGE}")),
-        (Some(path), false) => {
-            std::fs::write(&path, text).map_err(|e| format!("{}: {e}", path.display()))?;
-            Ok(ExitCode::SUCCESS)
-        }
-        (None, false) => {
-            print!("{text}");
-            Ok(ExitCode::SUCCESS)
-        }
+            Err(_) => {
+                eprintln!(
+                    "rayx-dtcg: {} is missing: run rayx-dtcg without --check to write it",
+                    out.display()
+                );
+                ExitCode::FAILURE
+            }
+        });
     }
+    std::fs::write(&out, text).map_err(|e| format!("{}: {e}", out.display()))?;
+    Ok(ExitCode::SUCCESS)
 }
