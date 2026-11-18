@@ -29,7 +29,7 @@ exactness. The resolution is in `src/lib.rs` (`Project`, `verify_exact`) and `sr
 - **Structure.** `dxn_dtcg`'s structure check over every selection: a token missing under some selection,
   or with different types, is refused, since NSH's contexts add no names.
 - **Layers.** `layers.rs` reads the root's `resolutionOrder` as authored: sets and modifiers, each context
-  with exactly its DTCG entries. `$extends` groups are copied (`flatten`): a set's copy follows the
+  with exactly its DTCG entries. `$extends` groups are copied (`expand()` in `crates/rayx_dtcg/src/lib.rs`): a set's copy follows the
   contexts that set the target, a context's copy lands in that context. The sets are merged into `tokens`
   (the later set winning); a token only modifiers set takes the entry of the last modifier whose default
   context sets it; a set placed after a modifier may set no token that modifier sets (refused).

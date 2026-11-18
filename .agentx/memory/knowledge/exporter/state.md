@@ -47,7 +47,7 @@ what the document holds in `README.md`.
   `roles.rs` (the role map and the role declarations). What each writes is in `README.md`.
 - Dependencies, each declared in the crate's own `Cargo.toml` (not the workspace table, see
   [release](../release/state.md)): `dxn_dtcg` by git tag `v1.4.0`; `nsh-theme` by the NSH fork's tag
-  `nshx-0.6.0-1` (the document model, `write`, `resolve`, `check`, `check_roles`); `serde_json` from the
+  `nshx-0.6.0-3` (the document model, `write`, `resolve`, `check`, `check_roles`); `serde_json` from the
   workspace. `nsh-theme` is the one NSH crate allowed: CI fails when `cargo tree` lists any other `nsh-`,
   `gpui` or `rayx` crate.
 - Tests: one integration group per feature, `crates/rayx_dtcg/tests/<feature>.rs`, selected with
