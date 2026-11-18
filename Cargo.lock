@@ -127,7 +127,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 [[package]]
 name = "nsh-theme"
 version = "0.6.0"
-source = "git+https://github.com/dXnSix/nsh?tag=nshx-0.6.0-1#df7b2dfa6d62e76f30477bb424a3f41cfea6600c"
+source = "git+https://github.com/dXnSix/nsh?tag=nshx-0.6.0-3#6ec3717843ab1de480623f3a0cff39929d1990bf"
 dependencies = [
  "serde",
  "serde_json",

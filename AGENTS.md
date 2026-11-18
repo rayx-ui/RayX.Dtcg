@@ -24,7 +24,7 @@ Each feature has its own integration-test group in `crates/rayx_dtcg/tests/<feat
 Dependencies come from git tags only, never paths, branches or commits:
 
 - `dxn_dtcg` at a dXn.Dtcg release tag (`v1.4.0`). A change this crate needs from dXn.Dtcg is released there first.
-- `nsh-theme` at an `nshx-*` tag of the NSH fork (`nshx-0.6.0-1`). It needs only serde and serde_json, and is the one
+- `nsh-theme` at an `nshx-*` tag of the NSH fork (`nshx-0.6.0-3`). It needs only serde and serde_json, and is the one
   NSH crate allowed: CI rejects any other `nsh-*`, `gpui*` or `rayx*` crate in the tree.
 
 Both are declared in `crates/rayx_dtcg/Cargo.toml`, not the workspace table, so that moving a tag releases this crate.

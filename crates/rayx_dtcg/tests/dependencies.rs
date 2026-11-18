@@ -133,7 +133,7 @@ fn the_check_names_a_disallowed_crate() {
     );
     assert!(
         git_tag(
-            "git+https://github.com/dXnSix/nsh#df7b2dfa6d62e76f30477bb424a3f41cfea6600c",
+            "git+https://github.com/dXnSix/nsh#6ec3717843ab1de480623f3a0cff39929d1990bf",
             "https://github.com/dXnSix/nsh"
         )
         .is_err()
@@ -208,7 +208,7 @@ fn guard_passes(tree: &str) -> bool {
 #[cfg(unix)]
 #[test]
 fn ci_guard_allows_nsh_theme_alone() {
-    let allowed = "rayx_dtcg v0.2.0 (/w)\ndxn_dtcg v1.4.0\nnsh-theme v0.6.0 (https://github.com/dXnSix/nsh?tag=nshx-0.6.0-1#df7b2dfa)\nnsh-theme feature \"default\"\nserde v1.0.0\n";
+    let allowed = "rayx_dtcg v0.2.0 (/w)\ndxn_dtcg v1.4.0\nnsh-theme v0.6.0 (https://github.com/dXnSix/nsh?tag=nshx-0.6.0-3#6ec37178)\nnsh-theme feature \"default\"\nserde v1.0.0\n";
     assert!(guard_passes(allowed));
     for crate_line in [
         "nsh-core v0.6.0",

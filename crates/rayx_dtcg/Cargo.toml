@@ -24,5 +24,5 @@ dxn_dtcg = { git = "https://github.com/dXnSix/dXn.Dtcg", tag = "v1.4.0" }
 # `check_roles`. It needs only serde and serde_json, and is the one NSH crate
 # this crate may depend on. An `nshx-*` tag of the fork, declared here for the
 # same reason as `dxn_dtcg`.
-nsh-theme = { git = "https://github.com/dXnSix/nsh", tag = "nshx-0.6.0-1" }
+nsh-theme = { git = "https://github.com/dXnSix/nsh", tag = "nshx-0.6.0-3" }
 serde_json.workspace = true
