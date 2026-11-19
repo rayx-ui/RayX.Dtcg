@@ -4,7 +4,7 @@ agentx:
   scope: knowledge/exporter
   status: current
   created: 2026-11-17T01:30:00+01:00
-  updated: 2026-11-18T18:10:00+01:00
+  updated: 2026-11-19T03:30:00+01:00
   topics:
     - exporter
     - rayx_dtcg
@@ -47,7 +47,7 @@ what the document holds in `README.md`.
   `roles.rs` (the role map and the role declarations). What each writes is in `README.md`.
 - Dependencies, each declared in the crate's own `Cargo.toml` (not the workspace table, see
   [release](../release/state.md)): `dxn_dtcg` by git tag `v1.4.0`; `nsh-theme` by the NSH fork's tag
-  `nshx-0.6.0-4` (the document model, `write`, `resolve`, `check`, `check_roles`); `serde_json` from the
+  `nshx-0.6.0-5` (the document model, `write`, `resolve`, `check`, `check_roles`); `serde_json` from the
   workspace. `nsh-theme` is the one NSH crate allowed: CI fails when `cargo tree` lists any other `nsh-`,
   `gpui` or `rayx` crate.
 - Tests: one integration group per feature, `crates/rayx_dtcg/tests/<feature>.rs`, selected with
