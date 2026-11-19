@@ -65,6 +65,7 @@ what the document holds in `README.md`.
 - [test fixtures](../../../../crates/rayx_dtcg/tests/common/mod.rs)
 - [workspace manifest](../../../../Cargo.toml)
 - [rust-toolchain.toml](../../../../rust-toolchain.toml)
+- 2026-11-19 current [decision: NSH's theme format through `nsh-theme`](../../decisions/exporter/resolution/2026-11-19-exporter-resolution-nsh-theme-format.md) (epic `theme-roles`)
 - 2026-11-17 current [exporter rules](rules.md)
 - 2026-11-17 current [resolution state](resolution/state.md)
 - 2026-11-17 current [command state](command/state.md)
