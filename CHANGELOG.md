@@ -5,6 +5,24 @@ this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1
 project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). It is generated from
 Conventional Commits by release-plz.
 
+## [0.3.0] - 2026-11-19
+
+### Features
+- [**breaking**] export NSH's theme format through nsh-theme
+  *Migration:* rayx-dtcg users: read the output with nsh-theme (or NSH's
+theme loader) instead of cssVars; drop --appearance and --names, pass
+-o, and pass the role map with --role-map and the declared roles with
+--roles.
+
+### Fixes
+- *(deps)* depend on nsh-theme at nshx-0.6.0-3, the tag RayX builds on
+- *(deps)* depend on nsh-theme at nshx-0.6.0-4, the tag RayX builds on
+- *(deps)* depend on nsh-theme at nshx-0.6.0-5, the tag RayX builds on
+
+### Tests
+- tell the two roundings apart and check the layers' authored order
+- read cargo metadata locked but online, so fresh runners resolve other targets' packages
+
 ## [0.2.0] - 2026-11-17
 
 ### Documentation
