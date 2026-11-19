@@ -4,7 +4,7 @@ agentx:
   scope: knowledge/governance/memory
   status: current
   created: 2026-11-17T01:30:00+01:00
-  updated: 2026-11-17T01:26:10+01:00
+  updated: 2026-11-18T18:10:00+01:00
   topics:
     - memory-taxonomy
     - agentx
@@ -19,7 +19,7 @@ Read before adding, moving or pruning memory in this repository.
 
 ## Current Technical Shape
 
-- Knowledge domains: `exporter` (with `resolution`, `command`), `theme-format`, `release`, `governance`
+- Knowledge domains: `exporter` (with `resolution`, `command`), `release`, `governance`
   (with `memory`). Each folder has `INDEX.md`, `state.md`, `knowledge.md`, `rules.md`, `hypotheses.md`.
 - Decisions live under `.agentx/memory/decisions/<domain>/<subdomain>/` as
   `YYYY-MM-DD-<domain>-<subdomain>-<topic>.md`.
@@ -31,4 +31,5 @@ Read before adding, moving or pruning memory in this repository.
 
 - [AGENTS.md](../../../../../AGENTS.md)
 - 2026-11-17 current [knowledge index](../../INDEX.md)
-- 2026-11-17 current [taxonomy decision](../../../decisions/governance/memory/2026-11-17-governance-memory-taxonomy.md)
+- 2026-11-18 current [format decision](../../../decisions/governance/memory/2026-11-18-governance-memory-no-format-domain.md)
+- 2026-11-17 superseded [taxonomy decision](../../../decisions/governance/memory/2026-11-17-governance-memory-taxonomy.md)
