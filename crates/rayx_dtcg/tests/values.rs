@@ -46,6 +46,18 @@ fn colors_are_srgb_hex_rounded_half_away_from_zero() {
         value_of("color", srgb(0.5, 0.5, 0.5), ValueType::Color),
         "#808080"
     );
+    // 127.5 rounds up under half-to-even too; 2.5/255 × 255 = 2.5 exactly
+    // tells them apart: away from zero gives 3, half to even would give 2.
+    let half_above_even = 2.5 / 255.0;
+    assert_eq!(half_above_even * 255.0, 2.5, "the channel is exactly x.5");
+    assert_eq!(
+        value_of(
+            "color",
+            srgb(half_above_even, half_above_even, half_above_even),
+            ValueType::Color
+        ),
+        "#030303"
+    );
     assert_eq!(
         value_of(
             "color",

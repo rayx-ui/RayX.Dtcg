@@ -15,7 +15,8 @@ fn number(n: f64) -> serde_json::Value {
 
 /// A resolver of the sets `base` (first) and `late` (last) and the
 /// modifiers `size` (contexts `large`, `small`; default `small`) and `mode`
-/// (`x`, `y`; default `x`), with the documents given.
+/// (`y`, `x`, authored out of alphabetical order; default `x`), with the
+/// documents given.
 fn project(documents: &[(&'static str, serde_json::Value)]) -> Vec<(&'static str, String)> {
     let resolver = json!({
         "version": "2025.10",
@@ -26,7 +27,7 @@ fn project(documents: &[(&'static str, serde_json::Value)]) -> Vec<(&'static str
         "modifiers": {
             "size": { "default": "small", "contexts": {
                 "large": [{ "$ref": "large.json" }], "small": [{ "$ref": "small.json" }] } },
-            "mode": { "default": "x", "contexts": { "x": [{ "$ref": "x.json" }], "y": [{ "$ref": "y.json" }] } }
+            "mode": { "default": "x", "contexts": { "y": [{ "$ref": "y.json" }], "x": [{ "$ref": "x.json" }] } }
         },
         "resolutionOrder": [
             { "$ref": "#/sets/base" }, { "$ref": "#/modifiers/size" },
@@ -84,9 +85,34 @@ fn modifiers_and_contexts_are_copied_one_to_one() {
         doc["modifiers"],
         json!({
             "size": { "default": "small", "contexts": { "large": { "gap": 8 }, "small": { "gap": 4 } } },
-            "mode": { "default": "x", "contexts": { "x": { "radius": 2 }, "y": { "radius": 6, "gap": 5 } } }
+            "mode": { "default": "x", "contexts": { "y": { "radius": 6, "gap": 5 }, "x": { "radius": 2 } } }
         }),
-        "each context holds its DTCG entries and nothing else, default contexts too, in authored order"
+        "each context holds its DTCG entries and nothing else, default contexts too"
+    );
+    // JSON maps compare without order: check the authored order as lists.
+    let keys = |value: &serde_json::Value| -> Vec<String> {
+        value.as_object().unwrap().keys().cloned().collect()
+    };
+    let modifiers = &doc["modifiers"];
+    assert_eq!(
+        keys(modifiers),
+        ["size", "mode"],
+        "modifiers in authored order"
+    );
+    assert_eq!(
+        keys(&modifiers["size"]["contexts"]),
+        ["large", "small"],
+        "`size`'s contexts in authored order"
+    );
+    assert_eq!(
+        keys(&modifiers["mode"]["contexts"]),
+        ["y", "x"],
+        "`mode`'s contexts in authored order, not sorted"
+    );
+    assert_eq!(
+        keys(&modifiers["mode"]["contexts"]["y"]),
+        ["radius", "gap"],
+        "a context's entries in authored order"
     );
     let values: Vec<(&str, serde_json::Value)> = doc["tokens"]
         .as_object()
