@@ -14,7 +14,9 @@ fn metadata() -> Value {
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
     let out = Command::new(cargo)
         .current_dir(workspace())
-        .args(["metadata", "--format-version", "1", "--locked", "--offline"])
+        // `--locked`, not `--offline`: the full graph names other targets' packages,
+        // which a fresh runner has not downloaded.
+        .args(["metadata", "--format-version", "1", "--locked"])
         .output()
         .expect("cargo metadata runs");
     assert!(
